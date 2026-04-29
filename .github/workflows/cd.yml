@@ -1,0 +1,95 @@
+name: CD — Deploy to Staging
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/jarviis
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        run: echo "sha=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Build & push auth-service
+        uses: docker/build-push-action@v6
+        with:
+          context: services/auth
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-auth:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-auth:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push api-gateway
+        uses: docker/build-push-action@v6
+        with:
+          context: services/api-gateway
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-gateway:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-gateway:${{ steps.meta.outputs.sha }}
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/jarviis
+            git pull origin main
+            docker compose pull
+            docker compose up -d --no-deps --build auth-service api-gateway
+            docker compose exec -T auth-service alembic upgrade head
+            echo "✅ Staging deployment complete: $(date)"
+
+      - name: Post-deploy health check
+        run: |
+          sleep 15
+          curl -f ${{ secrets.STAGING_URL }}/health || exit 1
+          echo "✅ Health check passed"
+
+      - name: Notify Slack
+        if: always()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Staging Deploy* — ${{ github.ref_name }} by ${{ github.actor }}\n${{ github.event.head_commit.message }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true

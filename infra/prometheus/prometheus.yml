@@ -1,0 +1,94 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: jarviis-local
+
+# Rules for alerting
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+
+  # JarviisAI services
+  - job_name: auth-service
+    static_configs:
+      - targets: [auth-service:8001]
+    metrics_path: /metrics
+
+  - job_name: projects-service
+    static_configs:
+      - targets: [projects:8002]
+    metrics_path: /metrics
+
+  - job_name: crawler
+    static_configs:
+      - targets: [crawler:8003]
+
+  - job_name: ai-orchestrator
+    static_configs:
+      - targets: [ai-orchestrator:8004]
+
+  - job_name: test-executor
+    static_configs:
+      - targets: [test-executor:8005]
+
+  - job_name: healing
+    static_configs:
+      - targets: [healing:8006]
+
+  - job_name: deploy-engine
+    static_configs:
+      - targets: [deploy:8008]
+
+  - job_name: api-tester
+    static_configs:
+      - targets: [api-tester:8009]
+
+  - job_name: security
+    static_configs:
+      - targets: [security:8010]
+
+  - job_name: jarviis-ai
+    static_configs:
+      - targets: [jarviis-ai:8012]
+
+  - job_name: api-gateway
+    static_configs:
+      - targets: [api-gateway:8000]
+    metrics_path: /metrics
+
+  # PostgreSQL
+  - job_name: postgres
+    static_configs:
+      - targets: [postgres-exporter:9187]
+
+  # Redis
+  - job_name: redis
+    static_configs:
+      - targets: [redis-exporter:9121]
+      # SaaS Platform Services
+      - targets: [events:8017]
+      - targets: [usage:8018]
+      - targets: [notifications:8019]
+      - targets: [analytics:8020]
+      - targets: [reports:8021]
+      - targets: [feature-flags:8022]
+      - targets: [audit:8023]
+      - targets: [search:8024]
+      - targets: [compliance:8025]
+      - targets: [health-scoring:8026]
+
+  # Node (system metrics)
+  - job_name: node
+    static_configs:
+      - targets: [node-exporter:9100]

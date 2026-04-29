@@ -1,0 +1,86 @@
+groups:
+  - name: jarviis.critical
+    interval: 30s
+    rules:
+      # Service availability
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been unreachable for 2 minutes"
+
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m]) /
+          rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate > 5% for 5 minutes"
+
+  - name: jarviis.warnings
+    rules:
+      # Slow response times
+      - alert: SlowRequests
+        expr: |
+          histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow P95 latency on {{ $labels.job }}"
+          description: "P95 latency > 5s"
+
+      # High memory
+      - alert: HighMemoryUsage
+        expr: |
+          container_memory_usage_bytes{name=~"jarviis-.*"} /
+          container_spec_memory_limit_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory: {{ $labels.name }}"
+
+      # Test run queue depth
+      - alert: TestQueueBacklog
+        expr: jarviis_pending_runs > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Test run queue backlog > 50"
+
+      # Database connection pool exhaustion
+      - alert: DBConnectionPoolHigh
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL connection pool near limit"
+
+      # Redis memory
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_config_maxmemory > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory > 85%"
+
+      # AI API errors
+      - alert: AIOrchestatorErrors
+        expr: rate(jarviis_ai_errors_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI Orchestrator error rate elevated"
+          description: "Check ANTHROPIC_API_KEY and quota"

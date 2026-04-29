@@ -1,0 +1,265 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  auth-service:
+    name: Auth Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/auth
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+          cache: pip
+          cache-dependency-path: services/auth/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Run tests
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///./test.db
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET: test_secret_key_minimum_32_characters_long
+          SECRET_KEY: test_app_secret_key_32chars_minimum
+          ENVIRONMENT: test
+          GITHUB_CLIENT_ID: ""
+          GITHUB_CLIENT_SECRET: ""
+          EMAIL_FROM: test@jarviis.ai
+        run: pytest app/tests/ -v --tb=short
+
+  events-service:
+    name: Events Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/events
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  usage-service:
+    name: Usage Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/usage
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  notifications-service:
+    name: Notifications Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/notifications
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  analytics-service:
+    name: Analytics Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/analytics
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  reports-service:
+    name: Reports Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/reports
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  feature-flags-service:
+    name: Feature Flags
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/feature-flags
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  audit-service:
+    name: Audit Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/audit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  search-service:
+    name: Search Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/search
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  compliance-service:
+    name: Compliance Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/compliance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  health-service:
+    name: Health Scoring
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/health
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  projects-service:
+    name: Projects Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/projects
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+          cache: pip
+          cache-dependency-path: services/projects/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Run tests
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///./test_projects.db
+          REDIS_URL: redis://localhost:6379/1
+          JWT_SECRET: test_secret_key_minimum_32_characters_long
+          ENVIRONMENT: test
+        run: pytest tests/ -v --tb=short
+
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "${{ env.NODE_VERSION }}"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run lint
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_PUBLIC_WS_URL: ws://localhost:8005
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+        run: npm run build
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: 0
+      - name: Secret scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          extra_args: --only-verified
+        continue-on-error: true
+
+  all-green:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    needs:
+      - auth-service
+      - events-service
+      - usage-service
+      - notifications-service
+      - analytics-service
+      - reports-service
+      - feature-flags-service
+      - audit-service
+      - search-service
+      - compliance-service
+      - health-service
+      - projects-service
+      - frontend
+      - security
+    steps:
+      - run: echo "All CI checks passed"
