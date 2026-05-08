@@ -113,10 +113,15 @@ class TestLogin:
     @pytest.mark.asyncio
     async def test_login_success(self, client):
         """Valid credentials return access and refresh tokens."""
-        res = await client.post("/api/v1/auth/login", json={
-            "email": "ada@test.com",
-            "password": "StrongPass1!",
-        })
+        with patch(
+            "app.core.security.store_refresh_token",
+            new_callable=AsyncMock,
+            return_value=True,
+        ):
+            res = await client.post("/api/v1/auth/login", json={
+                "email": "ada@test.com",
+                "password": "StrongPass1!"
+            })
         assert res.status_code == 200
         data = res.json()
         assert "access_token" in data
@@ -150,9 +155,15 @@ class TestTokens:
             await client.post("/api/v1/auth/register", json={
                 "email": "ada@test.com", "password": "StrongPass1!", "full_name": "Ada"
             })
-        res = await client.post("/api/v1/auth/login", json={
-            "email": "ada@test.com", "password": "StrongPass1!"
-        })
+        with patch(
+            "app.core.security.store_refresh_token",
+            new_callable=AsyncMock,
+            return_value=True,
+        ):
+            res = await client.post("/api/v1/auth/login", json={
+                "email": "ada@test.com",
+                "password": "StrongPass1!"
+            })
         return res.json()
 
     @pytest.mark.asyncio
