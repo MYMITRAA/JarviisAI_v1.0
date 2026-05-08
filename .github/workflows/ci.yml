@@ -129,7 +129,9 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v --tb=short
+      - run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/ -v --tb=short
 
   audit-service:
     name: Audit Service
@@ -175,7 +177,9 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v --tb=short
+      - run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/ -v --tb=short
 
   health-service:
     name: Health Scoring
@@ -189,7 +193,9 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v --tb=short
+      - run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/ -v --tb=short
 
   projects-service:
     name: Projects Service
