@@ -7,7 +7,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, Mock
 
 from app.main import app
 from app.core.database import get_db, Base
@@ -174,14 +174,18 @@ class TestTokens:
     async def test_get_me_with_token(self, client):
         """Authenticated request returns user data."""
         tokens = await self._login(client)
-        with patch(
-            "app.api.v1.endpoints.auth.get_current_user",
-            return_value={"sub": "test@example.com"},
-        ):
-            res = await client.get("/api/v1/users/me", headers={
-                "Authorization": f"Bearer {tokens['access_token']}"
-            })
+        from app.main import app
+        from app.api.v1.deps import get_current_user
+
+        async def override_get_current_user():
+            return Mock(id=1, email="test@example.com")
+
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        res = await client.get("/api/v1/users/me", headers={
+            "Authorization": f"Bearer {tokens['access_token']}"
+        })
         assert res.status_code == 200
+        app.dependency_overrides.clear()
         assert res.json()["email"] == "ada@test.com"
 
     @pytest.mark.asyncio
