@@ -12,6 +12,10 @@ from unittest.mock import AsyncMock, patch
 from app.main import app
 from app.core.database import get_db, Base
 from app.core.config import settings
+@pytest.fixture(autouse=True)
+def mock_redis():
+    with patch("app.core.security.redis_client", new_callable=AsyncMock):
+        yield
 
 # ── Test DB setup ─────────────────────────────────────────────
 TEST_DB_URL = "sqlite+aiosqlite:///./test.db"
