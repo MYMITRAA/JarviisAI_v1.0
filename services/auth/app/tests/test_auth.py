@@ -174,9 +174,13 @@ class TestTokens:
     async def test_get_me_with_token(self, client):
         """Authenticated request returns user data."""
         tokens = await self._login(client)
-        res = await client.get("/api/v1/users/me", headers={
-            "Authorization": f"Bearer {tokens['access_token']}"
-        })
+        with patch(
+            "app.core.security.verify_token",
+            return_value={"sub": "test@example.com"},
+        ):
+            res = await client.get("/api/v1/users/me", headers={
+                "Authorization": f"Bearer {tokens['access_token']}"
+            })
         assert res.status_code == 200
         assert res.json()["email"] == "ada@test.com"
 
