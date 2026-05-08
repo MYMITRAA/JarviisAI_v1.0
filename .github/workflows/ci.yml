@@ -65,7 +65,9 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v --tb=short
+      - run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/ -v --tb=short
 
   notifications-service:
     name: Notifications Service
@@ -79,7 +81,9 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v --tb=short
+      - run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/ -v --tb=short
 
   analytics-service:
     name: Analytics Service
