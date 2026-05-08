@@ -143,7 +143,9 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v --tb=short
+      - run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/ -v --tb=short
 
   search-service:
     name: Search Service
@@ -157,7 +159,9 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v --tb=short
+      - run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/ -v --tb=short
 
   compliance-service:
     name: Compliance Service
