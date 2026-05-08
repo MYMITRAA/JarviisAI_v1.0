@@ -175,7 +175,7 @@ class TestTokens:
         """Authenticated request returns user data."""
         tokens = await self._login(client)
         with patch(
-            "app.core.security.verify_token",
+            "app.api.v1.endpoints.auth.get_current_user",
             return_value={"sub": "test@example.com"},
         ):
             res = await client.get("/api/v1/users/me", headers={
