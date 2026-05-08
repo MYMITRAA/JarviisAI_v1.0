@@ -127,7 +127,7 @@ class TestRunCreate(BaseModel):
     git_branch: Optional[str] = None
     git_commit_sha: Optional[str] = None
     git_pr_number: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = {}
+    test_metadata: Optional[Dict[str, Any]] = {}
 
 
 class TestRunResponse(BaseModel):
@@ -222,9 +222,9 @@ class TestStatusUpdate(BaseModel):
 # ── Dashboard stats schema ────────────────────────────────────
 
 class ProjectStats(BaseModel):
-    total_projects: int
-    total_runs_today: int
-    pass_rate_today: Optional[float]
-    failed_runs_today: int
-    active_runs: int
-    tests_run_today: int
+    total_projects: int = 0
+    total_runs_today: int = 0
+    pass_rate_today: Optional[float] = 0.0
+    failed_runs_today: int = 0
+    active_runs: int = 0
+    tests_run_today: int = 0

@@ -12,15 +12,24 @@ from app.core.logging_config import configure_logging
 from app.core.config import settings
 from app.services.test_generator import orchestrator
 from app.core.metrics import setup_metrics
+import asyncio
+import httpx
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+)
 
-logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
-                    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+logging.getLogger("httpx").setLevel(logging.ERROR)
+logging.getLogger("httpcore").setLevel(logging.ERROR)
 logger = logging.getLogger("jarviis.ai")
+EVENTS_URL = os.getenv("EVENTS_SERVICE_URL", "http://jarviis-events:8017")
+EXECUTOR_URL = os.getenv("EXECUTOR_SERVICE_URL", "http://jarviis-test-executor:8005")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(f"🚀 AI Orchestrator ready — primary: {settings.PRIMARY_MODEL}")
+    asyncio.create_task(event_consumer())
+    logger.info(f"AI Orchestrator ready — primary: {settings.PRIMARY_MODEL}")
     yield
 
 
@@ -63,6 +72,84 @@ class SecurityHeadersMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_with_headers)
+async def event_consumer():
+    await asyncio.sleep(10)
+
+    last_stream_id = None
+
+    while True:
+        try:
+            print("EVENT CONSUMER RUNNING")
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+
+                response = await client.get(
+                    f"{EVENTS_URL}/api/v1/events"
+                )
+
+                events = response.json().get("events", [])
+
+                if not events:
+                    await asyncio.sleep(5)
+                    continue
+
+                latest_event = events[-1]
+
+                print("LATEST EVENT:", latest_event)
+
+                if latest_event.get("event") != "test.started":
+                    await asyncio.sleep(5)
+                    continue
+
+                payload = latest_event.get("payload", {})
+                run_id = payload.get("run_id")
+
+                if not run_id:
+                    await asyncio.sleep(5)
+                    continue
+
+                stream_id = latest_event.get("_stream_id")
+
+                if stream_id == last_stream_id:
+                    await asyncio.sleep(5)
+                    continue
+
+                print("Triggering executor for:", run_id)
+
+                await client.post(
+                    f"{EXECUTOR_URL}/api/v1/execute",
+                    json={
+                        "run_id": run_id,
+                        "project_id": latest_event.get("project_id"),
+                        "org_id": latest_event.get("org_id"),
+                        "url": "https://example.com",
+                        "test_suites": [
+                            {
+                                "name": "Smoke Test",
+                                "tests": [
+                                    {
+                                        "name": "Homepage Test",
+                                        "steps": [
+                                            {
+                                                "action": "goto",
+                                                "value": "https://example.com"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    
+                    }
+                
+                )
+
+                last_stream_id = stream_id
+
+        except Exception as e:
+            print("Orchestrator Error:", e)
+
+        await asyncio.sleep(5)
 
 app = FastAPI(title="JarviisAI AI Orchestrator", version="1.0.0", lifespan=lifespan)
 app.add_middleware(SecurityHeadersMiddleware)

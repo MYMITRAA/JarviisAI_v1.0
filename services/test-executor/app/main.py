@@ -78,11 +78,11 @@ app.add_middleware(CORSMiddleware, allow_origins=INTERNAL_ORIGINS, allow_credent
 
 class ExecuteRequest(BaseModel):
     run_id: str
-    project_id: str
-    org_id: str
-    url: str
+    project_id: Optional[str] = None
+    org_id: Optional[str] = None
+    url: Optional[str] = None
     browsers: List[str] = ["chromium"]
-    test_suites: list
+    test_suites: list = []
     test_plan: Optional[dict] = None
 
 
@@ -97,7 +97,12 @@ async def health():
 @app.post("/api/v1/execute", status_code=202)
 async def execute_tests(data: ExecuteRequest, background_tasks: BackgroundTasks):
     """Accept a test suite and execute it asynchronously."""
-    background_tasks.add_task(executor.execute, data.model_dump())
+    print("EXECUTOR RECEIVED:", data.run_id)
+    background_tasks.add_task(
+        executor.execute,
+        data.model_dump()
+    )
+
     return {"message": "Execution started", "run_id": data.run_id}
 
 

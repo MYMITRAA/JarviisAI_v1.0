@@ -18,11 +18,11 @@ logger = logging.getLogger("jarviis.auth.org")
 
 # Plan limits
 PLAN_LIMITS = {
-    OrgPlan.FREE:       {"test_runs": 200,     "members": 1},
-    OrgPlan.STARTER:    {"test_runs": 2_000,   "members": 3},
-    OrgPlan.GROWTH:     {"test_runs": 20_000,  "members": 10},
-    OrgPlan.BUSINESS:   {"test_runs": 200_000, "members": 50},
-    OrgPlan.ENTERPRISE: {"test_runs": 999_999, "members": 999},
+    OrgPlan.FREE:       {"test_runs": 200,     "team_members": 5},
+    OrgPlan.STARTER:    {"test_runs": 2_000,   "team_members": 3},
+    OrgPlan.GROWTH:     {"test_runs": 20_000,  "team_members": 10},
+    OrgPlan.BUSINESS:   {"test_runs": 200_000, "team_members": 50},
+    OrgPlan.ENTERPRISE: {"test_runs": 999_999, "team_members": 999},
 }
 
 
@@ -195,7 +195,7 @@ class OrgService:
 
         # Check member limit
         count = await self.get_member_count(org_id)
-        limit = PLAN_LIMITS.get(org.plan, {}).get("members", 1)
+        limit = PLAN_LIMITS.get(org.plan, {}).get("team_members", 5)
         if count >= limit:
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -207,7 +207,7 @@ class OrgService:
             select(OrganizationInvite).where(
                 OrganizationInvite.org_id == org_id,
                 OrganizationInvite.email == data.email.lower(),
-                OrganizationInvite.status == InviteStatus.PENDING,
+                OrganizationInvite.status == InviteStatus.PENDING.value
             )
         )
         if existing:
@@ -230,7 +230,7 @@ class OrgService:
         invite = await self.db.scalar(
             select(OrganizationInvite).where(OrganizationInvite.token == token)
         )
-        if not invite or invite.status != InviteStatus.PENDING:
+        if not invite or invite.status != InviteStatus.PENDING.value:
             raise HTTPException(status_code=400, detail="Invalid or expired invite")
 
         if invite.expires_at < datetime.now(timezone.utc):

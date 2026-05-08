@@ -7,6 +7,7 @@ from app.core.logging_config import configure_logging
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from datetime import datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -40,10 +41,12 @@ async def event_consumer():
     logger.info(f"Notification consumer subscribed to {len(channels)} event channels")
 
     async for message in pubsub.listen():
+        print("RAW REDIS MESSAGE:", message)
         if message["type"] != "message":
             continue
         try:
             data = json.loads(message["data"])
+            print("NOTIFICATION EVENT DATA:", data)
             event_type = data.get("event", "")
             org_id = data.get("org_id", "")
             payload = data.get("payload", {})

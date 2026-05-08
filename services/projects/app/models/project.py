@@ -197,7 +197,7 @@ class TestRun(Base):
     # Metadata
     environment_name: Mapped[str] = mapped_column(String(100), default="default")
     browsers: Mapped[Optional[list]] = mapped_column(JSONB, default=["chromium"])
-    metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default={})
+    test_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
 
     # Timing
     queued_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -273,7 +273,7 @@ class TestCase(Base):
     test_category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     priority: Mapped[str] = mapped_column(String(20), default="medium")
 
-    metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default={})
+    test_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default={})
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

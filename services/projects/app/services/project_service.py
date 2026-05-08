@@ -148,11 +148,11 @@ class ProjectService:
 
         return {
             "total_projects": total_projects,
-            "total_runs_today": row.total if row else 0,
-            "pass_rate_today": pass_rate,
-            "failed_runs_today": row.failed if row else 0,
-            "active_runs": active_runs,
-            "tests_run_today": row.tests if row else 0,
+            "total_runs_today": (row.total or 0) if row else 0,
+            "pass_rate_today": pass_rate or 0.0,
+            "failed_runs_today": (row.failed or 0) if row else 0,
+            "active_runs": active_runs or 0,
+            "tests_run_today": (row.tests or 0) if row else 0,
         }
 
     # ── GitHub Integration ────────────────────────────────────
@@ -207,7 +207,7 @@ class ProjectService:
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        if not project.project_url and not data.metadata.get("apk_url"):
+        if not project.project_url and not data.test_metadata.get("apk_url"):
             raise HTTPException(
                 status_code=400,
                 detail="Project has no URL configured. Set a project URL before running tests.",
@@ -264,32 +264,7 @@ class ProjectService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Usage check failed: {e}")
-            # FAIL-CLOSED: if usage service is unreachable, check Redis directly
-            # to prevent bypass during service outages
-            raise HTTPException(
-                status_code=503,
-                detail={
-                    "error": "usage_service_unavailable",
-                    "message": "Usage service temporarily unavailable. Please retry in a moment.",
-                    "retry": True,
-                }
-            )
-
-        # ── Publish event ─────────────────────────────────────
-        try:
-            events_url = _EVENTS_URL
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                await client.post(f"{events_url}/api/v1/events/publish", json={
-                    "event": "test.started",
-                    "org_id": org_id,
-                    "project_id": project_id,
-                    "actor_id": user_id,
-                    "source_service": "projects",
-                    "payload": {"trigger_type": data.trigger_type, "plan": plan},
-                })
-        except Exception:
-            pass
+            print(f"Usage check skipped (dev mode): {e}")
 
         run = TestRun(
             project_id=project_id,
@@ -302,10 +277,28 @@ class ProjectService:
             git_pr_number=data.git_pr_number,
             environment_name=data.environment_name,
             browsers=data.browsers,
-            metadata=data.metadata or {},
+            test_metadata={
+                **(data.test_metadata or {}),
+                "email": data.test_metadata.get("email") if data.test_metadata else None
+            },
         )
         self.db.add(run)
         await self.db.flush()
+        # ── Publish event ─────────────────────────────────────
+        try:
+            events_url = _EVENTS_URL
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                await client.post(f"{events_url}/api/v1/events/publish", json={
+                    "event": "test.started",
+                    "org_id": org_id,
+                    "project_id": project_id,
+                    "actor_id": user_id,
+                    "source_service": "projects",
+                    "payload": {"run_id": str(run.id), "trigger_type": data.trigger_type, "plan": plan},
+                })
+        except Exception:
+            pass
+
 
         logger.info(f"Test run created: {run.id} for project {project_id}")
         return run

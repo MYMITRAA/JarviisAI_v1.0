@@ -159,7 +159,7 @@ class OrgResponse(BaseModel):
     name: str
     slug: str
     description: Optional[str]
-    logo_url: Optional[str]
+    logo_url: Optional[str] = None
     plan: str
     monthly_test_run_limit: int
     monthly_test_runs_used: int

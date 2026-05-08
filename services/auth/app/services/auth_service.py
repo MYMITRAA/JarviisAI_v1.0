@@ -57,6 +57,8 @@ class AuthService:
 
         # Create user
         verification_token = secrets.token_urlsafe(32)
+        print("PASSWORD LENGTH:", len(data.password)),
+        print("PASSWORD VALUE:", data.password),
         user = User(
             email=data.email.lower(),
             full_name=data.full_name,

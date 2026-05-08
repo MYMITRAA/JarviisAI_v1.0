@@ -40,7 +40,7 @@ EVENTS_SERVICE_URL = os.getenv("EVENTS_SERVICE_URL", "http://events:8017")
 
 # Plan limits — single source of truth
 PLAN_LIMITS = {
-    "free":       {"test_runs": 100,   "projects": 3,   "team_members": 1,  "deployments": 10,  "ai_generations": 20,  "security_scans": 5},
+    "free":       {"test_runs": 100,   "projects": 3,   "team_members": 5,  "deployments": 10,  "ai_generations": 20,  "security_scans": 5},
     "starter":    {"test_runs": 100,   "projects": 3,   "team_members": 1,  "deployments": 10,  "ai_generations": 20,  "security_scans": 5},
     "pro":        {"test_runs": 2000,  "projects": 20,  "team_members": 5,  "deployments": 200, "ai_generations": 500, "security_scans": 50},
     "team":       {"test_runs": 10000, "projects": 100, "team_members": 25, "deployments": 1000,"ai_generations": 2000,"security_scans": 200},

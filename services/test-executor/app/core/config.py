@@ -22,8 +22,10 @@ class Settings(BaseSettings):
     S3_BUCKET: str = ""
     AWS_REGION: str = "us-east-1"
 
-    class Config:
-        env_file = ".env"
+    model_config = {
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 @lru_cache()

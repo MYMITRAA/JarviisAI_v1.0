@@ -12,9 +12,9 @@ services:
     container_name: jarviis-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-jarviis}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jarviis_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-jarviisdb}
+      POSTGRES_USER: jarviis
+      POSTGRES_PASSWORD: saiteja364
+      POSTGRES_DB: jarviis
     ports:
     - 5432:5432
     volumes:
@@ -46,7 +46,7 @@ services:
       - CMD
       - redis-cli
       - -a
-      - ${REDIS_PASSWORD:-redis_secret}
+      - redis123
       - ping
       interval: 10s
       timeout: 5s
@@ -67,8 +67,8 @@ services:
     restart: unless-stopped
     env_file: ./services/auth/.env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-jarviis}:${POSTGRES_PASSWORD:-jarviis_secret}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://jarviis:saiteja364@postgres:5432/jarviis
+      REDIS_URL: redis://:redis123@redis:6379/0
     ports:
     - 8001:8001
     depends_on:
@@ -97,8 +97,9 @@ services:
     restart: unless-stopped
     env_file: ./services/projects/.env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jarviis}:${POSTGRES_PASSWORD:-jarviis_secret}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/2
+      DATABASE_URL: postgresql+asyncpg://jarviis:saiteja364@postgres:5432/jarviis
+      REDIS_URL: redis://:redis123@redis:6379/2
+      USAGE_SERVICE_URL: http://localhost:9999   
     ports:
     - 8002:8002
     depends_on:
@@ -127,7 +128,7 @@ services:
     restart: unless-stopped
     env_file: ./services/crawler/.env
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/3
+      REDIS_URL: redis://:redis123@redis:6379/3
     ports:
     - 8003:8003
     depends_on:
@@ -155,7 +156,7 @@ services:
     restart: unless-stopped
     env_file: ./services/ai-orchestrator/.env
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/4
+      REDIS_URL: redis://:redis123@redis:6379/4
     ports:
     - 8004:8004
     depends_on:
@@ -170,7 +171,7 @@ services:
     build:
       context: ./services/test-executor
       dockerfile: Dockerfile
-    container_name: jarviis-executor
+    container_name: jarviis-test-executor
     healthcheck:
       test:
       - CMD-SHELL
@@ -181,7 +182,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/5
+      REDIS_URL: redis://:redis123@redis:6379/5
       PROJECTS_SERVICE_URL: http://projects:8002
       INTERNAL_SERVICE_SECRET: jarviis-internal-secret
       MAX_PARALLEL_WORKERS: '4'
@@ -212,8 +213,8 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jarviis}:${POSTGRES_PASSWORD:-jarviis_secret}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/8
+      DATABASE_URL: postgresql+asyncpg://jarviis:saiteja364@postgres:5432/jarviis
+      REDIS_URL: redis://:redis123@redis:6379/8
       JWT_SECRET: ${JWT_SECRET:-change_me}
       SECRET_KEY: ${SECRET_KEY:-change_me_32_chars_minimum_xxxxxxx}
       PROJECTS_SERVICE_URL: http://projects:8002
@@ -247,8 +248,8 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jarviis}:${POSTGRES_PASSWORD:-jarviis_secret}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/13
+      DATABASE_URL: postgresql+asyncpg://jarviis:saiteja364@postgres:5432/jarviis
+      REDIS_URL: redis://:redis123@redis:6379/13
       JWT_SECRET: ${JWT_SECRET:-change_me}
       AUTH_SERVICE_URL: http://auth-service:8001
       APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
@@ -283,7 +284,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/14
+      REDIS_URL: redis://:redis123@redis:6379/14
       PROJECTS_SERVICE_URL: http://projects:8002
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
@@ -384,7 +385,7 @@ services:
     restart: unless-stopped
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/12
+      REDIS_URL: redis://:redis123@redis:6379/12
       PROJECTS_SERVICE_URL: http://projects:8002
       ENVIRONMENT: ${ENVIRONMENT:-development}
       EVENTS_SERVICE_URL: http://events:8017
@@ -411,7 +412,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jarviis}:${POSTGRES_PASSWORD:-jarviis_secret}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql+asyncpg://jarviis:saiteja364@postgres:5432/jarviis
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       AUTH_SERVICE_URL: http://auth-service:8001
@@ -444,8 +445,8 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jarviis}:${POSTGRES_PASSWORD:-jarviis_secret}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/9
+      DATABASE_URL: postgresql+asyncpg://jarviis:saiteja364@postgres:5432/jarviis
+      REDIS_URL: redis://:redis123@redis:6379/9
       PROJECTS_SERVICE_URL: http://projects:8002
       ENVIRONMENT: ${ENVIRONMENT:-development}
       EVENTS_SERVICE_URL: http://events:8017
@@ -477,7 +478,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/10
+      REDIS_URL: redis://:redis123@redis:6379/10
       PROJECTS_SERVICE_URL: http://projects:8002
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ENVIRONMENT: ${ENVIRONMENT:-development}
@@ -510,7 +511,7 @@ services:
     restart: unless-stopped
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/11
+      REDIS_URL: redis://:redis123@redis:6379/11
       PROJECTS_SERVICE_URL: http://projects:8002
       DEPLOY_SERVICE_URL: http://deploy:8008
       ENVIRONMENT: ${ENVIRONMENT:-development}
@@ -541,8 +542,8 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jarviis}:${POSTGRES_PASSWORD:-jarviis_secret}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/6
+      DATABASE_URL: postgresql+asyncpg://jarviis:saiteja364@postgres:5432/jarviis
+      REDIS_URL: redis://:redis123@redis:6379/6
       PROJECTS_SERVICE_URL: http://projects:8002
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ENVIRONMENT: ${ENVIRONMENT:-development}
@@ -576,7 +577,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/7
+      REDIS_URL: redis://:redis123@redis:6379/7
       PROJECTS_SERVICE_URL: http://projects:8002
       ENVIRONMENT: ${ENVIRONMENT:-development}
       EVENTS_SERVICE_URL: http://events:8017
@@ -612,7 +613,7 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8001
       PROJECTS_SERVICE_URL: http://projects:8002
       DEPLOY_SERVICE_URL: http://deploy:8008
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/1
+      REDIS_URL: redis://:redis123@redis:6379/1
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
     ports:
     - 8000:8000
@@ -690,7 +691,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/15
+      REDIS_URL: redis://:redis123@redis:6379/15
       SERVICE_NAME: events
       ENVIRONMENT: ${ENVIRONMENT:-development}
       EVENTS_SERVICE_URL: http://events:8017
@@ -705,6 +706,7 @@ services:
     volumes:
     - ./services/events:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8017 --reload
+
   usage:
     build:
       context: ./services/usage
@@ -720,7 +722,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/16
+      REDIS_URL: redis://:redis123@redis:6379/16
       EVENTS_SERVICE_URL: http://events:8017
       ENVIRONMENT: ${ENVIRONMENT:-development}
       USAGE_SERVICE_URL: http://usage:8018
@@ -742,14 +744,14 @@ services:
     healthcheck:
       test:
       - CMD-SHELL
-      - curl -sf http://localhost:8019/health || exit 1
+      - python -c "import urllib.request; urllib.request.urlopen('http://localhost:8019/health')" || exit 1
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/17
+      REDIS_URL: redis://:redis123@redis:6379/0
       EVENTS_SERVICE_URL: http://events:8017
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -791,7 +793,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       EVENTS_SERVICE_URL: http://events:8017
       USAGE_SERVICE_URL: http://usage:8018
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/18
+      REDIS_URL: redis://:redis123@redis:6379/18
     ports:
     - 8020:8020
     networks:
@@ -820,7 +822,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       EVENTS_SERVICE_URL: http://events:8017
       USAGE_SERVICE_URL: http://usage:8018
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/22
+      REDIS_URL: redis://:redis123@redis:6379/22
     ports:
     - 8021:8021
     networks:
@@ -843,7 +845,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/19
+      REDIS_URL: redis://:redis123@redis:6379/19
       ENVIRONMENT: ${ENVIRONMENT:-development}
       EVENTS_SERVICE_URL: http://events:8017
       USAGE_SERVICE_URL: http://usage:8018
@@ -872,7 +874,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/20
+      REDIS_URL: redis://:redis123@redis:6379/20
       EVENTS_SERVICE_URL: http://events:8017
       ENVIRONMENT: ${ENVIRONMENT:-development}
       USAGE_SERVICE_URL: http://usage:8018
@@ -908,7 +910,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       EVENTS_SERVICE_URL: http://events:8017
       USAGE_SERVICE_URL: http://usage:8018
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/23
+      REDIS_URL: redis://:redis123@redis:6379/23
     ports:
     - 8024:8024
     networks:
@@ -936,7 +938,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       EVENTS_SERVICE_URL: http://events:8017
       USAGE_SERVICE_URL: http://usage:8018
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/24
+      REDIS_URL: redis://:redis123@redis:6379/24
     ports:
     - 8025:8025
     networks:
@@ -959,7 +961,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/21
+      REDIS_URL: redis://:redis123@redis:6379/21
       USAGE_SERVICE_URL: http://usage:8018
       ANALYTICS_SERVICE_URL: http://analytics:8020
       EVENTS_SERVICE_URL: http://events:8017

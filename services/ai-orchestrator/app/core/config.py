@@ -22,8 +22,11 @@ class Settings(BaseSettings):
     MAX_PAGES_IN_CONTEXT: int = 15
     MAX_ELEMENTS_PER_PAGE: int = 30
 
-    class Config:
-        env_file = ".env"
+    model_config = {
+        "env_file": ".env",
+        "extra": "allow"
+    }
+
 
 
 @lru_cache()

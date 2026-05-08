@@ -28,10 +28,14 @@ import asyncio
 import json
 import logging
 import os
+import ssl
+import smtplib
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import httpx
 import redis.asyncio as aioredis
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 logger = logging.getLogger("jarviis.notifications")
 
@@ -48,10 +52,10 @@ NOTIF_TTL = 7 * 24 * 3600
 
 # Default event → channel config
 DEFAULT_CONFIG = {
-    "test.failed":            {"channels": ["slack", "in_app"], "urgent": False},
-    "test.completed":         {"channels": ["in_app"], "urgent": False},
+    "test.failed":            {"channels": ["slack","email", "in_app"], "urgent": False},
+    "test.completed":         {"channels": ["slack", "email","in_app"], "urgent": False},
     "deploy.rolled_back":     {"channels": ["slack", "email", "in_app"], "urgent": True},
-    "deploy.failed":          {"channels": ["slack", "in_app"], "urgent": False},
+    "deploy.failed":          {"channels": ["slack", "email","in_app"], "urgent": False},
     "security.issue_critical":{"channels": ["slack", "email", "in_app"], "urgent": True},
     "usage.warning_80pct":    {"channels": ["email", "in_app"], "urgent": False},
     "usage.limit_reached":    {"channels": ["email", "in_app"], "urgent": True},
@@ -95,7 +99,8 @@ class NotificationService:
                 if slack_url:
                     tasks.append(self._send_slack(slack_url, event_type, message, payload))
             elif channel == "email":
-                email = org_config.get("notification_email")
+                email = payload.get("email") or org_config.get("notification_email")
+                print("EMAIL CHANNEL HIT:", email)   
                 if email:
                     tasks.append(self._send_email(email, event_type, message, payload))
             elif channel == "teams":
@@ -109,7 +114,7 @@ class NotificationService:
             tasks.append(self._send_webhook(webhook_url, event_type, payload))
 
         if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*tasks)
 
     async def save_org_config(self, org_id: str, config: dict) -> None:
         """Save org notification preferences to Redis."""
@@ -191,10 +196,16 @@ class NotificationService:
 
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                await client.post(webhook_url, json={
+                response = await client.post(webhook_url, json={
                     "text": message,
                     "blocks": blocks,
                 })
+            delivery = {
+                "status": "success" if response.status_code == 200 else "failed",
+                "channel": "webhook",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            delivery_logs.append(delivery)
         except Exception as e:
             logger.warning(f"Slack notification failed: {e}")
 
@@ -202,8 +213,11 @@ class NotificationService:
         """Send email via SMTP."""
         if not SMTP_HOST or not SMTP_USER:
             logger.debug(f"Email skipped (SMTP not configured): {message}")
+            print("❌ SMTP NOT CONFIGURED")             
             return
-
+        print("INSIDE _SEND_EMAIL")                    
+        print("SMTP_HOST:", SMTP_HOST)                 
+        print("SMTP_USER:", SMTP_USER) 
         subject_map = {
             "test.failed": "⚠️ Tests Failed — JarviisAI",
             "deploy.rolled_back": "🔄 Deployment Rolled Back — JarviisAI",
@@ -215,6 +229,7 @@ class NotificationService:
             "security.issue_critical": "🛡️ Critical Security Issue Found — JarviisAI",
         }
         subject = subject_map.get(event_type, f"JarviisAI: {event_type}")
+        html = f"<p>{message}</p>"
 
         # Build HTML email
         cta_url = f"{APP_URL}/dashboard"
@@ -225,8 +240,16 @@ class NotificationService:
         elif "usage" in event_type:
             cta_url = f"{APP_URL}/settings/billing"
             cta_text = "Upgrade Plan"
+        await asyncio.to_thread(
+            self.send_email,
+            to,
+            subject,
+            message,
+            html
+        )
 
         html = f"""
+        
 <!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
 <div style="background:#0a0a1a;padding:24px;border-radius:12px;border:1px solid #2a2a4e">
   <img src="{APP_URL}/logo.png" alt="JarviisAI" style="height:32px;margin-bottom:20px"/>
@@ -240,12 +263,17 @@ JarviisAI ·
 <a href="{APP_URL}/settings/notifications?unsubscribe=all">Unsubscribe</a>
 </p>
 </body></html>
-"""
+"""  
+    
+
+    def send_email(self, to, subject, message, html):
+      
         try:
-            import smtplib
-            from email.mime.multipart import MIMEMultipart
-            from email.mime.text import MIMEText
-            import ssl
+            SMTP_HOST = os.getenv("SMTP_HOST")
+            SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+            SMTP_USER = os.getenv("SMTP_USER")
+            SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+            EMAIL_FROM = os.getenv("EMAIL_FROM")
 
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
@@ -259,8 +287,9 @@ JarviisAI ·
                 server.starttls(context=context)
                 server.login(SMTP_USER, SMTP_PASSWORD)
                 server.sendmail(EMAIL_FROM, to, msg.as_string())
+            print("EMAIL SENT SUCCESSFULLY")
         except Exception as e:
-            logger.warning(f"Email notification failed to {to}: {e}")
+            print("EMAIL ERROR:", e)
 
     async def _send_teams(self, webhook_url: str, message: str, payload: dict) -> None:
         try:

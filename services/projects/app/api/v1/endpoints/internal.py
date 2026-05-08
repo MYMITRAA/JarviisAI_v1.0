@@ -8,10 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import Optional, List
 import os
+from datetime import datetime, timezone
+
 
 from app.core.database import get_db
 from app.models.project import TestRunStatus, TestCase, TestRun
 from app.services.project_service import ProjectService
+from app.schemas.internal import CompleteRequest
 
 router = APIRouter(prefix="/internal", tags=["Internal"])
 
@@ -222,7 +225,6 @@ async def complete_run(
     _: None = Depends(verify_internal),
 ):
     """Called by Executor when all tests have finished."""
-    from datetime import datetime, timezone
     run = await db.get(TestRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -235,10 +237,11 @@ async def complete_run(
     run.total_tests = data.total_tests
     run.duration_seconds = data.duration_seconds
     run.error_message = data.error_message
-    run.completed_at = datetime.now(timezone.utc)
-    if not run.started_at:
-        run.started_at = run.completed_at
 
+    if not run.started_at:
+        run.started_at = datetime.now(timezone.utc)
+
+    run.completed_at = datetime.now(timezone.utc)
     # Save individual test cases
     for case_data in data.test_cases:
         case = TestCase(
@@ -267,9 +270,14 @@ async def complete_run(
     try:
         import httpx, os
         events_url = os.getenv("EVENTS_SERVICE_URL", "http://events:8017")
+        payload = {}
+
         pass_rate = round(data.passed_tests / data.total_tests * 100, 1) if data.total_tests else 0
+
         event_name = "test.completed" if data.status == "passed" else "test.failed"
         async with httpx.AsyncClient(timeout=2.0) as client:
+            print("RUN TEST METADATA:", run.test_metadata)
+            print("EMAIL BEING SENT:", run.test_metadata.get("email"))
             await client.post(f"{events_url}/api/v1/events/publish", json={
                 "event": event_name,
                 "org_id": run.org_id,
@@ -278,6 +286,7 @@ async def complete_run(
                 "source_service": "projects",
                 "payload": {
                     "run_id": run_id,
+                    "email": run.test_metadata.get("email"),
                     "status": data.status,
                     "passed": data.passed_tests,
                     "failed": data.failed_tests,
@@ -303,4 +312,5 @@ async def complete_run(
             gh_svc = GitHubWebhookService(db)
             await gh_svc.post_run_result(run, integration)
 
-    return {"message": "Run completed", "status": data.status}
+    return {"message": "Run completed", "status": data.status
+}

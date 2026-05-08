@@ -15,5 +15,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         # Remove server fingerprint
-        response.headers.pop("Server", None)
+        if "server" in response.headers:
+            del response.headers["server"]
         return response

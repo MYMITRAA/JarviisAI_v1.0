@@ -15,7 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.core.database import Base
 import enum
-
+from sqlalchemy import String
 
 def utcnow():
     return datetime.now(timezone.utc)
@@ -91,7 +91,8 @@ class User(Base):
 
     # Relationships
     oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    org_memberships: Mapped[List["OrganizationMember"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    org_memberships: Mapped[List["OrganizationMember"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys="[OrganizationMember.user_id]")
+
 
     def __repr__(self):
         return f"<User {self.email}>"
@@ -202,6 +203,10 @@ class OrganizationMember(Base):
     invited_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="org_memberships", foreign_keys=[user_id])
+    invited_by: Mapped[Optional["User"]] = relationship(
+    "User",
+    foreign_keys=[invited_by_id]
+    )
     organization: Mapped["Organization"] = relationship(back_populates="members")
 
 
@@ -216,7 +221,7 @@ class OrganizationInvite(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(SAEnum(UserRole), default=UserRole.MEMBER)
     token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    status: Mapped[str] = mapped_column(SAEnum(InviteStatus), default=InviteStatus.PENDING)
+    status: Mapped[str] = mapped_column(String(50), default=InviteStatus.PENDING.value) 
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -241,5 +246,5 @@ class AuditLog(Base):
     resource_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    meta_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
