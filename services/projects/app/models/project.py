@@ -13,7 +13,8 @@ from sqlalchemy import (
     Enum as SAEnum
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import JSON
 from app.core.database import Base
 
 
@@ -78,7 +79,7 @@ class Project(Base):
     created_by_id: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False), nullable=True)
 
     # Test configuration
-    test_config: Mapped[Optional[dict]] = mapped_column(JSONB, default={})
+    test_config: Mapped[Optional[dict]] = mapped_column(JSON, default={})
     # {browsers: ["chrome","firefox"], viewport: "desktop", auth_url: ..., auth_credentials: {...}}
 
     # Stats (denormalized for fast dashboard queries)
@@ -185,10 +186,10 @@ class TestRun(Base):
     duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # AI outputs
-    ai_test_plan: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    ai_test_plan: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     ai_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ai_root_cause: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    crawl_result: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    crawl_result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Error state
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -196,8 +197,8 @@ class TestRun(Base):
 
     # Metadata
     environment_name: Mapped[str] = mapped_column(String(100), default="default")
-    browsers: Mapped[Optional[list]] = mapped_column(JSONB, default=["chromium"])
-    test_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    browsers: Mapped[Optional[list]] = mapped_column(JSON, default=["chromium"])
+    test_metadata: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
 
     # Timing
     queued_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -273,7 +274,7 @@ class TestCase(Base):
     test_category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     priority: Mapped[str] = mapped_column(String(20), default="medium")
 
-    test_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default={})
+    test_metadata: Mapped[Optional[dict]] = mapped_column(JSON, default={})
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
