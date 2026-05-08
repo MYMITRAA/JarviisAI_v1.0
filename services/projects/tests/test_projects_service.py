@@ -85,19 +85,8 @@ async def test_usage_check_429_when_limit_hit():
             svc.get = AsyncMock(return_value=MM(project_url="https://example.com", id="proj-1"))
 
             from app.schemas.project import TestRunCreate, TriggerType
-            service = ProjectService(mock_db)
-            org_id = str(uuid.uuid4())
-            user_id = str(uuid.uuid4())
-
-            project = await service.create_project(
-                org_id=org_id,
-                created_by=user_id,
-                data=ProjectCreate(
-                        name="CI Test Project",
-                        repo_url="https://github.com/test/repo"
-                    )
-                )
-            run_data = TestRunCreate(project_id=project.id, trigger_type=TriggerType.MANUAL)
+            
+            run_data = TestRunCreate(project_id=str(uuid.uuid4()), trigger_type=TriggerType.MANUAL)
             await svc.create_run("proj-1", "org-1", "user-1", run_data)
 
         assert exc_info.value.status_code == 429
