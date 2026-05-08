@@ -2,6 +2,7 @@
 Tests for Projects Service — focusing on usage enforcement.
 """
 import pytest
+import uuid
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -84,6 +85,17 @@ async def test_usage_check_429_when_limit_hit():
             svc.get = AsyncMock(return_value=MM(project_url="https://example.com", id="proj-1"))
 
             from app.schemas.project import TestRunCreate, TriggerType
+            org_id = str(uuid.uuid4())
+            user_id = str(uuid.uuid4())
+
+            project = await service.create_project(
+                org_id=org_id,
+                created_by=user_id,
+                data=ProjectCreate(
+                        name="CI Test Project",
+                        repo_url="https://github.com/test/repo"
+                    )
+                )
             run_data = TestRunCreate(project_id=project.id, trigger_type=TriggerType.MANUAL)
             await svc.create_run("proj-1", "org-1", "user-1", run_data)
 
