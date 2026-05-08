@@ -61,7 +61,7 @@ class TestRegister:
         with patch("app.services.email_service.EmailService.send_verification_email", new_callable=AsyncMock, return_value=True):
             res = await client.post("/api/v1/auth/register", json={
                 "email": "ada@test.com",
-                "password": "StrongPass1",
+                "password": "StrongPass1!",
                 "full_name": "Ada Lovelace",
             })
         print(res.json())
@@ -71,7 +71,7 @@ class TestRegister:
     @pytest.mark.asyncio
     async def test_register_duplicate_email(self, client):
         """Registering with existing email returns 409."""
-        payload = {"email": "ada@test.com", "password": "StrongPass1", "full_name": "Ada"}
+        payload = {"email": "ada@test.com", "password": "StrongPass1!", "full_name": "Ada"}
         with patch("app.services.email_service.EmailService.send_verification_email", new_callable=AsyncMock, return_value=True):
             await client.post("/api/v1/auth/register", json=payload)
             res = await client.post("/api/v1/auth/register", json=payload)
@@ -92,7 +92,7 @@ class TestRegister:
         """Invalid email is rejected."""
         res = await client.post("/api/v1/auth/register", json={
             "email": "not-an-email",
-            "password": "StrongPass1",
+            "password": "StrongPass1!",
         })
         assert res.status_code == 422
 
@@ -106,7 +106,7 @@ class TestLogin:
         with patch("app.services.email_service.EmailService.send_verification_email", new_callable=AsyncMock, return_value=True):
             await client.post("/api/v1/auth/register", json={
                 "email": "ada@test.com",
-                "password": "StrongPass1",
+                "password": "StrongPass1!",
                 "full_name": "Ada Lovelace",
             })
 
@@ -115,7 +115,7 @@ class TestLogin:
         """Valid credentials return access and refresh tokens."""
         res = await client.post("/api/v1/auth/login", json={
             "email": "ada@test.com",
-            "password": "StrongPass1",
+            "password": "StrongPass1!",
         })
         assert res.status_code == 200
         data = res.json()
@@ -137,7 +137,7 @@ class TestLogin:
         """Unknown email returns 401 (not 404 — no enumeration)."""
         res = await client.post("/api/v1/auth/login", json={
             "email": "unknown@test.com",
-            "password": "StrongPass1",
+            "password": "StrongPass1!",
         })
         assert res.status_code == 401
 
@@ -148,10 +148,10 @@ class TestTokens:
     async def _login(self, client) -> dict:
         with patch("app.services.email_service.EmailService.send_verification_email", new_callable=AsyncMock, return_value=True):
             await client.post("/api/v1/auth/register", json={
-                "email": "ada@test.com", "password": "StrongPass1", "full_name": "Ada"
+                "email": "ada@test.com", "password": "StrongPass1!", "full_name": "Ada"
             })
         res = await client.post("/api/v1/auth/login", json={
-            "email": "ada@test.com", "password": "StrongPass1"
+            "email": "ada@test.com", "password": "StrongPass1!"
         })
         return res.json()
 
