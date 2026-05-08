@@ -4,6 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Header
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import logging, os, json

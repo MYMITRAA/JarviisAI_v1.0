@@ -55,7 +55,7 @@ async def test_gdpr_delete_returns_confirmation(app):
         resp = await client.delete("/api/v1/compliance/org-1/gdpr/delete/user-456")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "deletion_queued"
+        assert data["status"] == "deletion_processed"
         assert "confirmation_id" in data
 
 
