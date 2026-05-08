@@ -17,12 +17,12 @@ from app.core.config import settings
 TEST_DB_URL = "sqlite+aiosqlite:///./test.db"
 
 if "sqlite" in settings.DATABASE_URL:
-    test_engine = create_async_engine(
+    engine = create_async_engine(
         settings.DATABASE_URL,
         echo=settings.ENVIRONMENT == "development",
     )
 else:
-    test_engine = create_async_engine(
+    engine = create_async_engine(
         settings.DATABASE_URL,
         echo=settings.ENVIRONMENT == "development",
         pool_size=10,
