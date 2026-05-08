@@ -13,15 +13,19 @@ logger = logging.getLogger("jarviis.auth.db")
 
 # ── Engine ────────────────────────────────────────────────────
 # NullPool for async — each request gets its own connection
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.ENVIRONMENT == "development",
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    pool_recycle=3600,
-    pool_timeout=30,
-)
+if "sqlite" in settings.DATABASE_URL:
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.ENVIRONMENT == "development",
+    )
+else:
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.ENVIRONMENT == "development",
+        pool_size=10,
+        max_overflow=20,
+        pool_timeout=30,
+    )
 
 # ── Session factory ───────────────────────────────────────────
 AsyncSessionLocal = async_sessionmaker(
