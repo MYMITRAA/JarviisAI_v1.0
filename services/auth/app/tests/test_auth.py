@@ -178,7 +178,19 @@ class TestTokens:
         from app.api.v1.deps import get_current_user
 
         async def override_get_current_user():
-            return Mock(id=1, email="test@example.com")
+            from datetime import datetime
+
+            return Mock(
+                id="1",
+                email="test@example.com",
+                full_name="Test User",
+                avatar_url="https://example.com/avatar.png",
+                is_email_verified=True,
+                is_active=True,
+                created_at=datetime.utcnow(),
+                last_login_at=datetime.utcnow(),
+                sso_provider="email",
+            )
 
         app.dependency_overrides[get_current_user] = override_get_current_user
         res = await client.get("/api/v1/users/me", headers={
