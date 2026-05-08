@@ -16,19 +16,7 @@ from app.core.config import settings
 # ── Test DB setup ─────────────────────────────────────────────
 TEST_DB_URL = "sqlite+aiosqlite:///./test.db"
 
-if "sqlite" in settings.DATABASE_URL:
-    engine = create_async_engine(
-        settings.DATABASE_URL,
-        echo=settings.ENVIRONMENT == "development",
-    )
-else:
-    engine = create_async_engine(
-        settings.DATABASE_URL,
-        echo=settings.ENVIRONMENT == "development",
-        pool_size=10,
-        max_overflow=20,
-        pool_timeout=30,
-    )
+test_engine = create_async_engine(TEST_DB_URL, echo=False)
 TestSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False)
 
 
