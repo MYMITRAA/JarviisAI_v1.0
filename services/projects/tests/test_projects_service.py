@@ -85,6 +85,7 @@ async def test_usage_check_429_when_limit_hit():
             svc.get = AsyncMock(return_value=MM(project_url="https://example.com", id="proj-1"))
 
             from app.schemas.project import TestRunCreate, TriggerType
+            service = ProjectService(db_session)
             org_id = str(uuid.uuid4())
             user_id = str(uuid.uuid4())
 
