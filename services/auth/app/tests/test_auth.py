@@ -64,6 +64,7 @@ class TestRegister:
                 "password": "StrongPass1",
                 "full_name": "Ada Lovelace",
             })
+        print(res.json())
         assert res.status_code == 201
         assert "message" in res.json()
 
