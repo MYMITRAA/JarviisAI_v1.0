@@ -97,7 +97,9 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v --tb=short
+      - run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest app/tests/ -v --tb=short
 
   reports-service:
     name: Reports Service
@@ -111,7 +113,9 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v --tb=short
+      - run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest app/tests/ -v --tb=short
 
   feature-flags-service:
     name: Feature Flags
