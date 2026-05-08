@@ -159,7 +159,7 @@ async def test_get_usage_returns_all_metrics(usage_svc):
     assert "deployments" in result
     assert "ai_generations" in result
     assert result["_plan"] == "pro"
-    assert "%" in str(result["test_runs"].get("percentage", ""))  # percentage is a number
+    assert isinstance(result["test_runs"].get("percentage"), (int, float))  # percentage is a number
 
 
 @pytest.mark.asyncio
