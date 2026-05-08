@@ -182,7 +182,7 @@ class TestTokens:
 
             return Mock(
                 id="1",
-                email="test@example.com",
+                email="ada@test.com",
                 full_name="Test User",
                 avatar_url="https://example.com/avatar.png",
                 is_email_verified=True,
