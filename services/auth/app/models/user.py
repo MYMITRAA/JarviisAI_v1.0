@@ -12,7 +12,8 @@ from sqlalchemy import (
     UniqueConstraint, Index, Enum as SAEnum, Integer
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import JSON
 from app.core.database import Base
 import enum
 from sqlalchemy import String
@@ -115,7 +116,7 @@ class OAuthAccount(Base):
     access_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     refresh_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    raw_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    raw_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -151,7 +152,7 @@ class Organization(Base):
     saml_metadata_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
     # Settings
-    settings: Mapped[Optional[dict]] = mapped_column(JSONB, default={})
+    settings: Mapped[Optional[dict]] = mapped_column(JSON, default={})
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -246,5 +247,5 @@ class AuditLog(Base):
     resource_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    meta_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    meta_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
