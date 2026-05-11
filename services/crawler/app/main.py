@@ -185,6 +185,10 @@ async def _update_run_status(
             await client.patch(
                 f"{settings.PROJECTS_SERVICE_URL}/api/v1/internal/runs/{run_id}/status",
                 json={"status": status, "error_message": error, "error_stage": stage},
+                headers={
+                    "X-Internal-Secret": settings.internal_service_secret
+                }
+
             )
     except Exception as e:
         logger.warning(f"Could not update run status: {e}")

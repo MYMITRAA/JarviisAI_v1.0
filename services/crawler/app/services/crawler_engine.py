@@ -207,6 +207,9 @@ class CrawlerEngine:
         start = time.time()
 
         try:
+            if not url.startswith(("http://", "https://")):
+                url = f"https://{url}"
+
             # Navigate with network idle wait for SPA
             response = await page.goto(
                 url,
@@ -415,6 +418,8 @@ class CrawlerEngine:
             page = await context.new_page()
             try:
                 login_url = auth_config.get("login_url") or urljoin(url, "/login")
+                if not login_url.startswith(("http://", "https://")):
+                    login_url = f"https://{login_url}"
                 await page.goto(login_url, wait_until="networkidle")
                 await page.fill(auth_config.get("email_selector", "input[type='email']"), auth_config.get("email", ""))
                 await page.fill(auth_config.get("password_selector", "input[type='password']"), auth_config.get("password", ""))
