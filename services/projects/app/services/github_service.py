@@ -41,10 +41,14 @@ class GitHubWebhookService:
         self.project_svc = ProjectService(db)
 
     async def handle_push(self, payload: dict) -> Optional[TestRun]:
+        print("HANDLE_PUSH_STARTED")
         """Handle GitHub push event — trigger test run if integration active."""
         repo_full_name = payload.get("repository", {}).get("full_name")
         ref = payload.get("ref", "")
         commit_sha = payload.get("after", "")
+        print("REPO:", repo_full_name)
+        print("REF:", ref)
+        print("COMMIT:", commit_sha)
         head_commit = payload.get("head_commit") or {}
 
         if not repo_full_name or commit_sha == "0000000000000000000000000000000000000000":
@@ -53,18 +57,21 @@ class GitHubWebhookService:
         branch = ref.replace("refs/heads/", "")
 
         integration = await self.project_svc.get_integration_by_repo(repo_full_name)
+        print("INTEGRATION FOUND:", integration)
         if not integration or not integration.trigger_on_push:
+            print("NO INTEGRATION OR PUSH DISABLED")
             return None
 
         # Branch filter check
         if integration.branch_filter and branch not in integration.branch_filter.split(","):
             logger.info(f"Branch {branch} not in filter — skipping")
+            print("BRANCH FILTER BLOCKED")
             return None
-
+        print("CREATING RUN NOW")
         run = await self.project_svc.create_run(
             project_id=integration.project_id,
             org_id=integration.org_id,
-            user_id="github-bot",
+            user_id=None,
             data=TestRunCreate(
                 project_id=integration.project_id,
                 trigger_type=TriggerType.GITHUB_PUSH,
@@ -77,6 +84,7 @@ class GitHubWebhookService:
                 },
             ),
         )
+        print("RUN CREATED:", run.id)
 
         # Update integration last_webhook_at
         from datetime import datetime, timezone
@@ -117,7 +125,7 @@ class GitHubWebhookService:
         run = await self.project_svc.create_run(
             project_id=integration.project_id,
             org_id=integration.org_id,
-            user_id="github-bot",
+            user_id=None,
             data=TestRunCreate(
                 project_id=integration.project_id,
                 trigger_type=TriggerType.GITHUB_PR,
