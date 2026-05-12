@@ -113,6 +113,7 @@ async def event_consumer():
                 if stream_id == last_stream_id:
                     await asyncio.sleep(5)
                     continue
+                last_stream_id = stream_id
 
                 print("Triggering executor for:", run_id)
 
@@ -144,7 +145,6 @@ async def event_consumer():
                 
                 )
 
-                last_stream_id = stream_id
 
         except Exception as e:
             print("Orchestrator Error:", e)
