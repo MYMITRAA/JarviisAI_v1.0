@@ -211,7 +211,7 @@ class ProjectService:
         try:
             result = await self.db.execute(
                 text("""
-                    SELECT email
+                    SELECT settings->>'notification_email' AS email
                     FROM organizations
                     WHERE id = :oid
                     LIMIT 1
