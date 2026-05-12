@@ -145,7 +145,7 @@ async def healing_result(
         await asyncio.sleep(1)
 
     if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
+        raise HTTPException(status_code=404, detail="Run not found")#added
 
     existing = run.metadata or {}
     run.metadata = {
