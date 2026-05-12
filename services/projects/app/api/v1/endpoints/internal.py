@@ -201,7 +201,7 @@ async def update_run_status(
 
     run = None
 
-    for _ in range(5):
+    for _ in range(10):
         try:
             svc = ProjectService(db)
             run = await svc.update_run_status(
