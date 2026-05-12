@@ -220,7 +220,11 @@ class TestGenerationOrchestrator:
                     }
                 )
         except Exception as e:
-            logger.warning(f"Could not store test plan: {e}")
+            import traceback
+
+            logger.error(f"Could not store test plan: {e}")
+
+            traceback.print_exc()
 
     async def _send_to_executor(self, payload: Dict, generation_result: Dict) -> None:
         """Send generated tests to the Test Executor service."""
