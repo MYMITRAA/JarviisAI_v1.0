@@ -6,7 +6,7 @@ This service coordinates: Projects → Crawl → Generate → Execute → Result
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, update, desc
+from sqlalchemy import select, func, update, desc, text
 from fastapi import HTTPException, status
 import httpx
 import logging
@@ -205,20 +205,27 @@ class ProjectService:
     ) -> TestRun:
 
         project = await self.get(project_id, org_id)
-        from sqlalchemy import select
-        from app.models.user import User
 
         user_email = None
 
-        if project.created_by_id:
-            result = await self.db.execute(     
-                select(User).where(User.id == project.created_by_id)
+        try:
+            result = await self.db.execute(
+                text("""
+                    SELECT email
+                    FROM users
+                    WHERE id = :uid
+                    LIMIT 1
+                """),
+                {"uid": str(project.created_by_id)}
             )
 
-            owner = result.scalar_one_or_none()
+            row = result.first()
 
-            if owner:
-                user_email = owner.email
+            if row:
+                user_email = row.email
+
+        except Exception as e:
+            logger.warning(f"Could not fetch owner email: {e}")
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
