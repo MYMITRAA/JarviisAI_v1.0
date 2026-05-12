@@ -183,6 +183,8 @@ async def _update_run_status(
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             print(settings.internal_service_secret)
+            import asyncio
+            await asyncio.sleep(2)
             response = await client.request(
                 method="PATCH",
                 url=f"{settings.PROJECTS_SERVICE_URL}/api/v1/internal/runs/{run_id}/status",
