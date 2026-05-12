@@ -220,9 +220,10 @@ class ProjectService:
             )
 
             row = result.first()
+            print("ORG QUERY ROW:", row)
 
             if row:
-                user_email = row.email
+                user_email = row[0]
             print("FETCHED EMAIL:", user_email)
 
         except Exception as e:
