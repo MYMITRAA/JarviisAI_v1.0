@@ -134,18 +134,9 @@ async def healing_result(
     _: None = Depends(verify_internal),
 ):
     """Called by Healing service after auto-healing completes."""
-    import asyncio
-
-    run = None
-
-    for _ in range(5):
-        run = await db.get(TestRun, run_id)
-        if run:
-            break
-        await asyncio.sleep(1)
-
+    run = await db.get(TestRun, run_id)
     if not run:
-        raise HTTPException(status_code=404, detail="Run not found")#added
+        raise HTTPException(status_code=404, detail="Run not found")
 
     existing = run.metadata or {}
     run.metadata = {
@@ -206,14 +197,29 @@ async def update_run_status(
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Invalid status: {data.status}")
 
-    svc = ProjectService(db)
-    run = await svc.update_run_status(
-        run_id=run_id,
-        status=status,
-        error_message=data.error_message,
-        error_stage=data.error_stage,
-        ai_summary=data.ai_summary,
-    )
+    import asyncio
+
+    run = None
+
+    for _ in range(5):
+        try:
+            svc = ProjectService(db)
+            run = await svc.update_run_status(
+                run_id=run_id,
+                status=status,
+                error_message=data.error_message,
+                error_stage=data.error_stage,
+                ai_summary=data.ai_summary,
+            )
+
+            if run:
+                break
+
+        except Exception:
+            await asyncio.sleep(1)
+
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
     return {"run_id": run_id, "status": run.status}
 
 
