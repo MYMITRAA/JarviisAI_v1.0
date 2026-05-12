@@ -299,7 +299,8 @@ async def complete_run(
         )
         db.add(case)
 
-    await db.flush()
+    await db.commit()
+    print("DB COMMIT SUCCESS")
 
     # Update project stats
     svc = ProjectService(db)
