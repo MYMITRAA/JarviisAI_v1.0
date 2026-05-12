@@ -188,6 +188,11 @@ async def _execute_tests(data: RunApiTestsRequest) -> None:
                         for r in result.get("results", [])
                     ],
                 },
+                headers={
+
+                    "x-internal-secret": settings.internal_service_secret
+                }
+
             )
     except Exception as e:
         logger.error(f"API test run failed: {e}", exc_info=True)

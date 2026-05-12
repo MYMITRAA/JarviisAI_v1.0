@@ -57,7 +57,7 @@ class SecurityHeadersMiddleware:
 app = FastAPI(title="JarviisAI Projects Service", version="1.0.0", lifespan=lifespan,
               docs_url="/docs" if settings.ENVIRONMENT == "development" else None)
 
-app.add_middleware(SecurityHeadersMiddleware)
+#app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(CORSMiddleware, allow_origins=settings.ALLOWED_ORIGINS,
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 

@@ -21,10 +21,20 @@ router = APIRouter(prefix="/internal", tags=["Internal"])
 INTERNAL_SECRET = os.getenv("INTERNAL_SERVICE_SECRET", "jarviis-internal-secret")
 
 
-def verify_internal(x_internal_secret: Optional[str] = Header(None)):
-    """Simple service-to-service auth. Replace with mTLS in production."""
-    if x_internal_secret != INTERNAL_SECRET:
-        raise HTTPException(status_code=403, detail="Forbidden — internal endpoint")
+from fastapi import Request
+
+def verify_internal(request: Request):
+    
+    print("CLIENT:", request.client)
+    header = request.headers.get("X-Internal-Secret")
+    print("HEADER:", header)
+    print("EXPECTED:", INTERNAL_SECRET)
+
+    if header != INTERNAL_SECRET:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden — internal endpoint"
+        )
 
 
 class StatusUpdateRequest(BaseModel):

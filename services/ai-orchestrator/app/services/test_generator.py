@@ -213,8 +213,11 @@ class TestGenerationOrchestrator:
                             "total_tests": result["test_plan"]["total_tests"],
                             "coverage_areas": result["test_plan"].get("coverage_areas", []),
                             "model_used": result.get("model_used"),
-                        },
+                        },   
                     },
+                    headers={
+                        "x-internal-secret": settings.internal_service_secret
+                    }
                 )
         except Exception as e:
             logger.warning(f"Could not store test plan: {e}")
@@ -254,6 +257,9 @@ class TestGenerationOrchestrator:
                 await client.patch(
                     f"{settings.PROJECTS_SERVICE_URL}/api/v1/internal/runs/{run_id}/status",
                     json={"status": status, "error_message": error, "error_stage": stage},
+                    headers={
+                        "x-internal-secret": settings.internal_service_secret
+                    }
                 )
         except Exception as e:
             logger.warning(f"Could not update run status: {e}")

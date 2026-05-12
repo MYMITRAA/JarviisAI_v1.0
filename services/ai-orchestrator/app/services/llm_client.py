@@ -95,8 +95,24 @@ class LLMClient:
             except Exception as e:
                 logger.error(f"OpenAI fallback also failed: {e}")
                 raise
+        logger.warning("No AI provider configured — using fallback tests")
 
-        raise RuntimeError("No AI providers configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY.")
+        target_url = "https://google.com"
+
+        if isinstance(user_prompt, str):
+            import re
+            match = re.search(r'https?://[^\s]+', user_prompt)
+            if match:
+                target_url = match.group(0)
+
+        return f"""
+        import {{ test, expect }} from '@playwright/test';
+
+        test('Smoke Test', async ({{ page }}) => {{
+          await page.goto('{target_url}');
+          await expect(page).toHaveTitle(/.+/);
+        }});
+        """
 
     @retry(
         stop=stop_after_attempt(3),
