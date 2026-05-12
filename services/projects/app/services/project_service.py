@@ -212,20 +212,21 @@ class ProjectService:
             result = await self.db.execute(
                 text("""
                     SELECT email
-                    FROM users
-                    WHERE id = :uid
+                    FROM organizations
+                    WHERE id = :oid
                     LIMIT 1
                 """),
-                {"uid": str(project.created_by_id)}
+                {"oid": str(org_id)}
             )
 
             row = result.first()
 
             if row:
                 user_email = row.email
+            print("FETCHED EMAIL:", user_email)
 
         except Exception as e:
-            logger.warning(f"Could not fetch owner email: {e}")
+            print("EMAIL FETCH ERROR:", str(e))
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
