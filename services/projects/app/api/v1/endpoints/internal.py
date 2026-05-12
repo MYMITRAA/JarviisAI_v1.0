@@ -134,7 +134,16 @@ async def healing_result(
     _: None = Depends(verify_internal),
 ):
     """Called by Healing service after auto-healing completes."""
-    run = await db.get(TestRun, run_id)
+    import asyncio
+
+    run = None
+
+    for _ in range(5):
+        run = await db.get(TestRun, run_id)
+        if run:
+            break
+        await asyncio.sleep(1)
+
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
