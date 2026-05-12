@@ -250,9 +250,20 @@ async def complete_run(
     _: None = Depends(verify_internal),
 ):
     """Called by Executor when all tests have finished."""
-    run = await db.get(TestRun, run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
+    import asyncio
+
+    run = None
+
+    for _ in range(10):
+        run = await db.get(TestRun, run_id)
+
+        if run:
+            break
+
+        await asyncio.sleep(1)
+
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
 
     # Update run stats
     run.status = TestRunStatus(data.status)
