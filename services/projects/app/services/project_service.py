@@ -203,7 +203,22 @@ class ProjectService:
     async def create_run(
         self, project_id: str, org_id: str, user_id: str, data: TestRunCreate
     ) -> TestRun:
+
         project = await self.get(project_id, org_id)
+        from sqlalchemy import select
+        from app.models.user import User
+
+        user_email = None
+
+        if project.created_by_id:
+            result = await self.db.execute(     
+                select(User).where(User.id == project.created_by_id)
+            )
+
+            owner = result.scalar_one_or_none()
+
+            if owner:
+                user_email = owner.email
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
@@ -279,7 +294,11 @@ class ProjectService:
             browsers=data.browsers,
             test_metadata={
                 **(data.test_metadata or {}),
-                "email": data.test_metadata.get("email") if data.test_metadata else None
+                "email": (
+                    data.test_metadata.get("email")
+                    if data.test_metadata and data.test_metadata.get("email")
+                    else user_email
+                )
             },
         )
         self.db.add(run)

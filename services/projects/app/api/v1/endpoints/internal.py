@@ -237,7 +237,10 @@ async def update_run_plan(
 
     run.ai_test_plan = data.ai_test_plan
     if data.crawl_summary:
-        run.metadata = {**(run.metadata or {}), "crawl_summary": data.crawl_summary}
+        run.test_metadata = {
+            **(run.test_metadata or {}),
+            "crawl_summary": data.crawl_summary
+        }
     await db.flush()
     return {"message": "Plan stored"}
 
