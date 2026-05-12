@@ -283,7 +283,8 @@ class ProjectService:
             },
         )
         self.db.add(run)
-        await self.db.flush()
+        await self.db.commit()
+        await self.db.refresh(run)
         # ── Publish event ─────────────────────────────────────
         try:
             events_url = _EVENTS_URL

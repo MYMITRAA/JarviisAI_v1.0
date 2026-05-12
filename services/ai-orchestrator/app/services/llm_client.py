@@ -105,14 +105,30 @@ class LLMClient:
             if match:
                 target_url = match.group(0)
 
-        return f"""
-        import {{ test, expect }} from '@playwright/test';
-
-        test('Smoke Test', async ({{ page }}) => {{
-          await page.goto('{target_url}');
-          await expect(page).toHaveTitle(/.+/);
-        }});
+        fallback_test = f"""
+        {{
+          "test_plan": {{
+            "summary": "Fallback smoke test",
+            "total_tests": 1,
+            "coverage_areas": ["smoke"],
+            "estimated_duration_seconds": 30
+          }},
+          "test_suites": [
+            {{
+              "name": "Smoke Suite",
+              "tests": [
+                {{
+                  "name": "Homepage Test",
+                  "description": "Basic smoke test",
+                  "code": "test('Homepage Test', async ({{ page }}) => {{ await page.goto('{target_url}'); await expect(page).toHaveTitle(/.+/); }});"
+                }}
+              ]
+            }}
+          ]
+        }}
         """
+
+        return fallback_test, "fallback", {}
 
     @retry(
         stop=stop_after_attempt(3),
