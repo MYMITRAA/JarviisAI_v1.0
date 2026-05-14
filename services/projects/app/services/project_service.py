@@ -483,10 +483,12 @@ class ProjectService:
                 )
             run.status = TestRunStatus.QUEUED
             run.queued_at = datetime.now(timezone.utc)
-            await self.db.flush()
+            await self.db.commit()
+            print("QUEUE STATUS COMMITTED:", run.id)
         except Exception as e:
             logger.error(f"Failed to trigger crawl for run {run_id}: {e}")
             run.status = TestRunStatus.ERROR
             run.error_message = f"Failed to start crawler: {str(e)}"
             run.error_stage = "trigger"
-            await self.db.flush()
+            await self.db.commit()
+            print("ERROR STATUS COMMITTED:", run.id)
