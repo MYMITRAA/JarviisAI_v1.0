@@ -203,7 +203,7 @@ class TestGenerationOrchestrator:
     async def _store_test_plan(self, run_id: str, result: Dict) -> None:
         """Save the AI test plan to the run record."""
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 await client.patch(
                     f"{settings.PROJECTS_SERVICE_URL}/api/v1/internal/runs/{run_id}/plan",
                     json={
@@ -239,7 +239,7 @@ class TestGenerationOrchestrator:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 resp = await client.post(
                     f"{settings.TEST_EXECUTOR_URL}/api/v1/execute",
                     json=executor_payload,
@@ -257,7 +257,8 @@ class TestGenerationOrchestrator:
         error: Optional[str] = None, stage: Optional[str] = None
     ) -> None:
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                print("STORING TEST PLAN FOR:", run_id)
                 await client.patch(
                     f"{settings.PROJECTS_SERVICE_URL}/api/v1/internal/runs/{run_id}/status",
                     json={"status": status, "error_message": error, "error_stage": stage},
@@ -265,6 +266,7 @@ class TestGenerationOrchestrator:
                         "x-internal-secret": settings.internal_service_secret
                     }
                 )
+                print("TEST PLAN STORED SUCCESSFULLY:", run_id)
         except Exception as e:
             logger.warning(f"Could not update run status: {e}")
 
