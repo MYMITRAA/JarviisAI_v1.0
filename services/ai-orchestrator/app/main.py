@@ -76,6 +76,7 @@ async def event_consumer():
     await asyncio.sleep(10)
 
     processed_stream_ids = set()
+    startup_complete = False
 
     while True:
         try:
@@ -86,6 +87,15 @@ async def event_consumer():
                 )
 
                 events = response.json().get("events", [])
+                if not startup_complete:
+                    for e in events:
+                        sid = e.get("_stream_id")
+                        if sid:
+                            processed_stream_ids.add(sid)
+
+                    startup_complete = True
+                    await asyncio.sleep(2)
+                    continue
 
                 if not events:
                     await asyncio.sleep(5)

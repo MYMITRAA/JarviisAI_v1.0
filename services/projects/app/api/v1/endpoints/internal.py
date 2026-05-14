@@ -300,7 +300,10 @@ async def complete_run(
         db.add(case)
 
     await db.commit()
+    await db.refresh(run)
+
     print("DB COMMIT SUCCESS")
+    print("REFRESHED TEST METADATA:", run.test_metadata)
 
     # Update project stats
     svc = ProjectService(db)
@@ -311,6 +314,12 @@ async def complete_run(
         import httpx, os
         events_url = os.getenv("EVENTS_SERVICE_URL", "http://events:8017")
         payload = {}
+        email = None
+
+        if run.test_metadata:
+            email = run.test_metadata.get("email")
+
+        print("COMPLETION EMAIL:", email)
 
         pass_rate = round(data.passed_tests / data.total_tests * 100, 1) if data.total_tests else 0
 
