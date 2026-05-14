@@ -15,6 +15,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from jinja2 import Template
+import asyncio
 import httpx
 
 from app.services.llm_client import llm_client
