@@ -23,7 +23,7 @@ from app.core.config import settings
 
 logger = logging.getLogger("jarviis.ai.generator")
 
-PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "test_generation_v1.txt"
+PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "test_generation_v1.txt"#q
 
 SYSTEM_PROMPT = """You are JarviisAI's autonomous test generation engine.
 You are an expert senior QA architect. You generate production-quality Playwright TypeScript tests.
