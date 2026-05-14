@@ -75,7 +75,7 @@ class SecurityHeadersMiddleware:
 async def event_consumer():
     await asyncio.sleep(10)
 
-    last_stream_id = None
+    processed_stream_ids = set()
 
     while True:
         try:
@@ -92,9 +92,10 @@ async def event_consumer():
                 if not events:
                     await asyncio.sleep(5)
                     continue
+            
                 new_events = [
                     e for e in events
-                    if e.get("_stream_id") != last_stream_id
+                    if e.get("_stream_id") not in processed_stream_ids
                 ]
 
                 if not new_events:
@@ -105,14 +106,11 @@ async def event_consumer():
                 latest_event = new_events[-1]
 
                 print("LATEST EVENT:", latest_event)
-                if latest_event.get("event") == "test.completed":
-                    last_stream_id = latest_event.get("_stream_id")
-                    await asyncio.sleep(5)
-                    continue
-
+                stream_id = latest_event.get("_stream_id")
+                processed_stream_ids.add(stream_id)
 
                 if latest_event.get("event") != "test.started":
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(2)
                     continue
 
                 payload = latest_event.get("payload", {})
@@ -121,13 +119,6 @@ async def event_consumer():
                 if not run_id:
                     await asyncio.sleep(5)
                     continue
-
-                stream_id = latest_event.get("_stream_id")
-
-                if stream_id == last_stream_id:
-                    await asyncio.sleep(5)
-                    continue
-                last_stream_id = stream_id
 
                 print("Triggering executor for:", run_id)
 
