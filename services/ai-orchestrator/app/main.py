@@ -92,7 +92,7 @@ async def event_consumer():
                 if not events:
                     await asyncio.sleep(5)
                     continue
-            
+
                 new_events = [
                     e for e in events
                     if e.get("_stream_id") not in processed_stream_ids
@@ -102,54 +102,53 @@ async def event_consumer():
                     await asyncio.sleep(5)
                     continue
 
+                for latest_event in new_events:
 
-                latest_event = new_events[-1]
+                    print("LATEST EVENT:", latest_event)
 
-                print("LATEST EVENT:", latest_event)
-                stream_id = latest_event.get("_stream_id")
-                processed_stream_ids.add(stream_id)
+                    stream_id = latest_event.get("_stream_id")
 
-                if latest_event.get("event") != "test.started":
-                    await asyncio.sleep(2)
-                    continue
+                    if stream_id in processed_stream_ids:
+                        continue
 
-                payload = latest_event.get("payload", {})
-                run_id = payload.get("run_id")
+                    processed_stream_ids.add(stream_id)
 
-                if not run_id:
-                    await asyncio.sleep(5)
-                    continue
+                    if latest_event.get("event") != "test.started":
+                        continue
 
-                print("Triggering executor for:", run_id)
+                    payload = latest_event.get("payload", {})
+                    run_id = payload.get("run_id")
 
-                await client.post(
-                    f"{EXECUTOR_URL}/api/v1/execute",
-                    json={
-                        "run_id": run_id,
-                        "project_id": latest_event.get("project_id"),
-                        "org_id": latest_event.get("org_id"),
-                        "url": "https://example.com",
-                        "test_suites": [
-                            {
-                                "name": "Smoke Test",
-                                "tests": [
-                                    {
-                                        "name": "Homepage Test",
-                                        "steps": [
-                                            {
-                                                "action": "goto",
-                                                "value": "https://example.com"
-                                            }
-                                        ]
-                                    }
-                                ]
-                            }
-                        ]
-                    
-                    }
-                
-                )
+                    if not run_id:
+                        continue
 
+                    print("Triggering executor for:", run_id)
+
+                    await client.post(
+                        f"{EXECUTOR_URL}/api/v1/execute",
+                        json={
+                            "run_id": run_id,
+                            "project_id": latest_event.get("project_id"),
+                            "org_id": latest_event.get("org_id"),
+                            "url": "https://example.com",
+                            "test_suites": [
+                                {
+                                    "name": "Smoke Test",
+                                    "tests": [
+                                        {
+                                            "name": "Homepage Test",
+                                            "steps": [
+                                                {
+                                                    "action": "goto",
+                                                    "value": "https://example.com"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    )
 
         except Exception as e:
             print("Orchestrator Error:", e)
