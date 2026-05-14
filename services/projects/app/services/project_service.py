@@ -224,7 +224,7 @@ class ProjectService:
 
             if row:
                 user_email = row[0]
-            print("FETCHED EMAIL:", user_email)
+            print("FETCHED EMAIL:", user_email)#line
 
         except Exception as e:
             print("EMAIL FETCH ERROR:", str(e))
