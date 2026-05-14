@@ -92,6 +92,15 @@ async def event_consumer():
                 if not events:
                     await asyncio.sleep(5)
                     continue
+                new_events = [
+                    e for e in events
+                    if e.get("_stream_id") != last_stream_id
+                ]
+
+                if not new_events:
+                    await asyncio.sleep(5)
+                    continue
+
 
                 latest_event = events[-1]
 
