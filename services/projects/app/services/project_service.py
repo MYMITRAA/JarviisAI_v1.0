@@ -445,6 +445,7 @@ class ProjectService:
                 pass_rate=pass_rate,
             )
         )
+        await self.db.commit()
 
     # ── Run orchestration ─────────────────────────────────────
 
