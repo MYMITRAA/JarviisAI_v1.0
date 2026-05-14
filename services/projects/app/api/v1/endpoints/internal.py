@@ -237,11 +237,12 @@ async def update_run_plan(
 
     run.ai_test_plan = data.ai_test_plan
     if data.crawl_summary:
-        run.test_metadata = {
-            **(run.test_metadata or {}),
-            "crawl_summary": data.crawl_summary
-        }
+        metadata = dict(run.test_metadata or {})
+        metadata["crawl_summary"] = data.crawl_summary
+        run.test_metadata = metadata
+    print("UPDATING RUN PLAN:", run_id)
     await db.commit()
+    print("TEST PLAN STORED:", run_id)
     return {"message": "Plan stored"}
 
 
