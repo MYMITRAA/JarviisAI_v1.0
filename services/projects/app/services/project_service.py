@@ -386,7 +386,8 @@ class ProjectService:
             if run.started_at:
                 run.duration_seconds = (run.completed_at - run.started_at).total_seconds()
 
-        await self.db.flush()
+        await self.db.commit()
+        await self.db.refresh(run)
 
         # Update project stats
         await self._update_project_stats(run.project_id)
