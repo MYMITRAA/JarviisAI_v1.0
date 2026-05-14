@@ -230,6 +230,7 @@ async def update_run_plan(
     db: AsyncSession = Depends(get_db),
     _: None = Depends(verify_internal),
 ):
+    print("PLAN ENDPOINT HIT:", run_id)
     """Called by AI Orchestrator to store the generated test plan."""
     run = await db.get(TestRun, run_id)
     if not run:
@@ -241,7 +242,9 @@ async def update_run_plan(
         metadata["crawl_summary"] = data.crawl_summary
         run.test_metadata = metadata
     print("UPDATING RUN PLAN:", run_id)
+    print("BEFORE COMMIT")
     await db.commit()
+    print("AFTER COMMIT")
     print("TEST PLAN STORED:", run_id)
     return {"message": "Plan stored"}
 
