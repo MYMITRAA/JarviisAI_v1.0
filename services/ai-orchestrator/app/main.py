@@ -79,8 +79,6 @@ async def event_consumer():
 
     while True:
         try:
-            print("EVENT CONSUMER RUNNING")
-
             async with httpx.AsyncClient(timeout=30.0) as client:
 
                 response = await client.get(
@@ -93,26 +91,20 @@ async def event_consumer():
                     await asyncio.sleep(5)
                     continue
 
-                new_events = [
-                    e for e in events
-                    if e.get("_stream_id") not in processed_stream_ids
-                ]
-
-                if not new_events:
-                    await asyncio.sleep(5)
-                    continue
-
-                for latest_event in new_events:
-
-                    print("LATEST EVENT:", latest_event)
+                for latest_event in events:
 
                     stream_id = latest_event.get("_stream_id")
 
+                    if not stream_id:
+                        continue
+
+                    # Ignore already processed events
                     if stream_id in processed_stream_ids:
                         continue
 
                     processed_stream_ids.add(stream_id)
 
+                    # ONLY process fresh test.started events
                     if latest_event.get("event") != "test.started":
                         continue
 
@@ -122,7 +114,7 @@ async def event_consumer():
                     if not run_id:
                         continue
 
-                    print("Triggering executor for:", run_id)
+                    print(f"\nNEW RUN DETECTED: {run_id}")
 
                     await client.post(
                         f"{EXECUTOR_URL}/api/v1/execute",
@@ -149,6 +141,8 @@ async def event_consumer():
                             ]
                         }
                     )
+
+                    print(f"EXECUTOR TRIGGERED FOR: {run_id}")
 
         except Exception as e:
             print("Orchestrator Error:", e)

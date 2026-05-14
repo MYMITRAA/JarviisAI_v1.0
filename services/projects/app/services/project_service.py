@@ -239,8 +239,6 @@ class ProjectService:
 
         # ── Usage enforcement ─────────────────────────────────
         # Fetch effective plan (respects 2-day trial overlay)
-        from sqlalchemy import text
-        from datetime import datetime, timezone
         plan = "starter"
         try:
             plan_row = await self.db.execute(
