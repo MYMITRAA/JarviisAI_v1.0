@@ -124,41 +124,51 @@ class TestExecutorService:
             await self._report_results(run_id, results, payload, duration)
 
     def _build_suite_file(self, suite: Dict, base_url: str) -> str:
+
         """Assemble a complete .spec.ts file from a test suite."""
+
         suite_name = suite.get("name", "Tests")
         tests_code = []
 
         for test in suite.get("tests", []):
 
             test_name = test.get("name", "Generated Test")
-            steps = test.get("steps", [])
 
-            playwright_steps = []
+            # Use AI-generated Playwright code directly if available
+            generated_code = test.get("code")
 
-            for step in steps:
+            if generated_code:
+                test_code = generated_code
 
-                if step.get("action") == "goto":
-                    playwright_steps.append(
-                        "await page.goto('data:text/html,<title>Test Passed</title><h1>Hello</h1>');"
-                    )
+            else:
+                steps = test.get("steps", [])
 
-            test_code = f"""
-        test('{test_name}', async ({{ page }}) => {{
-            {' '.join(playwright_steps)}
-        }});
-        """
+                playwright_steps = []
+
+                for step in steps:
+
+                    if step.get("action") == "goto":
+                        playwright_steps.append(
+                            "await page.goto('data:text/html,<title>Test Passed</title><h1>Hello</h1>');"
+                        )
+
+                test_code = f"""
+    test('{test_name}', async ({{ page }}) => {{
+        {' '.join(playwright_steps)}
+    }});
+    """
 
             tests_code.append(test_code.strip())
 
         return f"""
-        import {{ test, expect }} from '@playwright/test';
+    import {{ test, expect }} from '@playwright/test';
 
-        test.describe('{suite_name}', () => {{
+    test.describe('{suite_name}', () => {{
 
-        {chr(10).join(tests_code)}
+    {chr(10).join(tests_code)}
 
-        }});
-        """
+    }});
+    """
 
     async def _run_playwright(self, tmpdir: Path, run_id: str) -> Dict:
         """Execute `npx playwright test` and capture output."""
