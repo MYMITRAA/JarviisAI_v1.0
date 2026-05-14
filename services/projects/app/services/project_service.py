@@ -289,6 +289,15 @@ class ProjectService:
             raise
         except Exception as e:
             print(f"Usage check skipped (dev mode): {e}")
+        print("FINAL USER EMAIL:", user_email)
+        print("FINAL TEST METADATA:", {
+            **(data.test_metadata or {}),
+            "email": (
+                data.test_metadata.get("email")
+                if data.test_metadata and data.test_metadata.get("email")
+                else user_email
+            )
+        })
 
         run = TestRun(
             project_id=project_id,
@@ -308,7 +317,7 @@ class ProjectService:
                     if data.test_metadata and data.test_metadata.get("email")
                     else user_email
                 )
-            },
+            },     
         )
         self.db.add(run)
         await self.db.commit()

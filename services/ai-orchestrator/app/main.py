@@ -105,6 +105,11 @@ async def event_consumer():
                 latest_event = new_events[-1]
 
                 print("LATEST EVENT:", latest_event)
+                if latest_event.get("event") == "test.completed":
+                    last_stream_id = latest_event.get("_stream_id")
+                    await asyncio.sleep(5)
+                    continue
+
 
                 if latest_event.get("event") != "test.started":
                     await asyncio.sleep(5)
