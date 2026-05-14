@@ -320,6 +320,7 @@ class ProjectService:
         self.db.add(run)
         await self.db.commit()
         await self.db.refresh(run)
+        print("FINAL TEST METADATA FROM DB:", run.test_metadata)
         # ── Publish event ─────────────────────────────────────
         try:
             events_url = _EVENTS_URL

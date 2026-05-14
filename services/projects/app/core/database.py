@@ -12,8 +12,10 @@ else:
         settings.DATABASE_URL,
         echo=settings.ENVIRONMENT == "development",
         pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=20,
+        pool_size=50,
+        max_overflow=100,
+        pool_timeout=120,
+
     )
 AsyncSessionLocal = async_sessionmaker(
     bind=engine, class_=AsyncSession,

@@ -271,7 +271,7 @@ class TestExecutorService:
 
         # Report to Projects service
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 await client.post(
                     f"{settings.PROJECTS_SERVICE_URL}/api/v1/internal/runs/{run_id}/complete",
                     json={
@@ -299,7 +299,7 @@ class TestExecutorService:
 
     async def _update_status(self, run_id: str, status: str) -> None:
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 await client.patch(
                     f"{settings.PROJECTS_SERVICE_URL}/api/v1/internal/runs/{run_id}/status",
                     json={"status": "running"},
