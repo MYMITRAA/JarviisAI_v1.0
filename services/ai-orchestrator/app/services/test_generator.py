@@ -201,6 +201,7 @@ class TestGenerationOrchestrator:
             await self._update_run_status(run_id, "error", error=str(e), stage="generate")
 
     async def _store_test_plan(self, run_id: str, result: Dict) -> None:
+        await asyncio.sleep(3)
         """Save the AI test plan to the run record."""
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:

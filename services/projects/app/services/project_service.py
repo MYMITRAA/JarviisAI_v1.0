@@ -372,8 +372,6 @@ class ProjectService:
             raise HTTPException(status_code=404, detail="Test run not found")
 
         run.status = status
-        await self.db.commit()
-        await self.db.refresh(run)
         print("STATUS COMMITTED:", run.id, run.status)
         if error_message:
             run.error_message = error_message
