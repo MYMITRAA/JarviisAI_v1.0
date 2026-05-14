@@ -102,7 +102,7 @@ async def event_consumer():
                     continue
 
 
-                latest_event = events[-1]
+                latest_event = new_events[-1]
 
                 print("LATEST EVENT:", latest_event)
 
