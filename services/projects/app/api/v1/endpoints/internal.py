@@ -241,7 +241,7 @@ async def update_run_plan(
             **(run.test_metadata or {}),
             "crawl_summary": data.crawl_summary
         }
-    await db.flush()
+    await db.commit()
     return {"message": "Plan stored"}
 
 
