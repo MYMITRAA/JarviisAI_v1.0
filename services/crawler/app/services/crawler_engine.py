@@ -272,6 +272,51 @@ class CrawlerEngine:
             return None
         finally:
             await page.close()
+    async def _extract_elements(self, page) -> List[Dict]:
+        """Extract interactive elements from page."""
+
+        raw = await page.evaluate("""
+        () => {
+            const selectors =
+                'button, input, select, textarea, a[href], [role="button"]';
+
+            return Array.from(
+                document.querySelectorAll(selectors)
+            ).slice(0, 200).map(el => ({
+                tag: el.tagName.toLowerCase(),
+                text: (el.innerText || el.textContent || '').trim(),
+                type: el.type || null,
+                placeholder: el.placeholder || null,
+                href: el.href || null,
+                id: el.id || null,
+                name: el.name || null,
+                visible: !!(
+                    el.offsetWidth ||
+                    el.offsetHeight ||
+                    el.getClientRects().length
+                )
+            }));
+        }
+        """)
+
+        elements = []
+
+        for el in raw or []:
+
+            if not el.get("visible"):
+                continue
+
+            elements.append({
+                "tag": el.get("tag"),
+                "text": el.get("text"),
+                "type": el.get("type"),
+                "placeholder": el.get("placeholder"),
+                "href": el.get("href"),
+                "id": el.get("id"),
+                "name": el.get("name"),
+            })
+
+        return elements
 
     async def _extract_links(self, page, base_url: str) -> List[str]:
 
