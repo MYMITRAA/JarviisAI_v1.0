@@ -319,7 +319,7 @@ class CrawlerEngine:
         logger.info(
             f"EXTRACTED {len(clean_links)} LINKS FROM {base_url}"
         )
-
+#
         return clean_links
 
     async def _extract_forms(self, page: Page) -> List[Dict]:
