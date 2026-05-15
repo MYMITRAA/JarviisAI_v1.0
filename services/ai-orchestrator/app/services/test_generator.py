@@ -17,7 +17,6 @@ from typing import Dict, List, Optional, Any
 from jinja2 import Template
 import asyncio
 import httpx
-
 from app.services.llm_client import llm_client
 from app.core.config import settings
 
@@ -82,6 +81,36 @@ class TestGenerationService:
                 page["interactive_elements"] = page["interactive_elements"][:settings.MAX_ELEMENTS_PER_PAGE]
 
         context = crawl_result.get("app_context", {})
+        suggested_tests = []
+
+        for page in context.get("pages", []):
+
+            actions = page.get("possible_actions", [])
+
+        if "login" in actions:
+            suggested_tests.append(
+                "Generate login validation tests with valid and invalid credentials."
+        )
+
+        if "signup" in actions:
+            suggested_tests.append(
+                "Generate user registration flow tests."
+        )
+
+        if "search" in actions:
+            suggested_tests.append(
+                "Generate search functionality tests."
+        )
+
+        if "checkout" in actions:
+            suggested_tests.append(
+                "Generate checkout and payment workflow tests."
+        )
+
+        if "submit_form" in actions:
+            suggested_tests.append(
+                "Generate form validation and submission tests."
+        )
 
         return template.render(
             base_url=url or crawl_result.get("base_url", ""),
@@ -91,6 +120,7 @@ class TestGenerationService:
             has_forms=context.get("has_forms", False),
             has_checkout=context.get("has_checkout", False),
             pages=context.get("pages", pages[:settings.MAX_PAGES_IN_CONTEXT]),
+            suggested_tests=suggested_tests,
             min_tests=5,
             max_tests=settings.MAX_TESTS_PER_RUN,
         )

@@ -474,6 +474,57 @@ class CrawlerEngine:
         if any(kw in url_lower for kw in ("list", "search", "browse", "catalog")):
             return "listing"
         return "page"
+    
+    def _detect_possible_actions(
+        self,
+        elements: List[Dict],
+        forms: List[Dict],
+        url: str,
+    ) -> List[str]:
+
+        actions = []
+
+        url_lower = url.lower()
+
+        texts = [
+            (e.get("text") or "").lower()
+            for e in elements
+        ]
+
+        placeholders = [
+            (e.get("placeholder") or "").lower()
+            for e in elements
+        ]
+
+    # Login detection
+        if (
+            "login" in url_lower or
+            "signin" in url_lower or
+            any("login" in t for t in texts)
+        ):
+            actions.append("login")
+
+    # Signup detection
+        if (
+            "signup" in url_lower or
+            "register" in url_lower or
+            any("register" in t for t in texts)
+        ):
+            actions.append("signup")
+
+    # Search detection
+        if any("search" in p for p in placeholders):
+            actions.append("search")
+
+    # Form submission
+        if forms:
+            actions.append("submit_form")
+
+    # Checkout detection
+        if any(k in url_lower for k in ["checkout", "payment", "cart"]):
+            actions.append("checkout")
+
+        return list(set(actions))
 
     def _is_same_domain(self, url: str, base_domain: str) -> bool:
         try:
@@ -508,6 +559,11 @@ class CrawlerEngine:
                      "submit_text": form.get("submit_text")}
                     for form in p.forms
                 ],
+                "possible_actions": self._detect_possible_actions(
+                    p.elements,
+                    p.forms,
+                    p.url
+                ),
             })
 
         return {

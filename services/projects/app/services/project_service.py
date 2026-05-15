@@ -47,6 +47,7 @@ class ProjectService:
             name=data.name,
             slug=data.slug,
             description=data.description,
+            target_url=data.target_url,
             project_type=data.project_type,
             project_url=data.project_url,
             test_config=data.test_config or {},
@@ -331,7 +332,7 @@ class ProjectService:
                     "project_id": project_id,
                     "actor_id": user_id,
                     "source_service": "projects",
-                    "payload": {"run_id": str(run.id), "trigger_type": data.trigger_type, "plan": plan},
+                    "payload": {"run_id": str(run.id), "trigger_type": data.trigger_type, "plan": plan, "url": project.target_url,},
                 })
         except Exception:
             pass

@@ -10,6 +10,11 @@ Has authentication: {{ has_auth }}
 Has forms: {{ has_forms }}
 Has checkout: {{ has_checkout }}
 
+Suggested Test Focus Areas:
+{% for item in suggested_tests %}
+- {{ item }}
+{% endfor %}
+
 ## Pages Discovered
 {% for page in pages %}
 ### Page: {{ page.url }}

@@ -132,7 +132,7 @@ async def event_consumer():
                             "run_id": run_id,
                             "project_id": latest_event.get("project_id"),
                             "org_id": latest_event.get("org_id"),
-                            "url": "https://example.com",
+                            "url": payload.get("url"),
                             "test_suites": [
                                 {
                                     "name": "Smoke Test",

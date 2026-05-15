@@ -8,7 +8,7 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional, List
 from sqlalchemy import (
-    String, Boolean, DateTime, ForeignKey, Text,
+    String, Boolean, DateTime, ForeignKey, Text, Column,
     UniqueConstraint, Index, Integer, Float,
     Enum as SAEnum
 )
@@ -73,6 +73,7 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    target_url = Column(String, nullable=True)
     project_type: Mapped[str] = mapped_column(SAEnum(ProjectType), default=ProjectType.WEB)
     project_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
