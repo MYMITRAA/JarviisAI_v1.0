@@ -97,13 +97,11 @@ class LLMClient:
                 raise
         logger.warning("No AI provider configured — using fallback tests")
 
-        target_url = "https://google.com"
+        import re
 
-        if isinstance(user_prompt, str):
-            import re
-            match = re.search(r'https?://[^\s]+', user_prompt)
-            if match:
-                target_url = match.group(0)
+        matches = re.findall(r'https?://[^\s]+', user_prompt)
+
+        target_url = matches[-1] if matches else ""
 
         fallback_test = f"""
         {{
