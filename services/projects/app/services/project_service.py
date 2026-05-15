@@ -483,7 +483,7 @@ class ProjectService:
                         "test_config": project.test_config or {},
                         "browsers": run.browsers or ["chromium"],
                     },
-                )
+                )#
             run.status = TestRunStatus.QUEUED
             run.queued_at = datetime.now(timezone.utc)
             await self.db.commit()
