@@ -18,6 +18,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Any
+from collections import deque
 from urllib.parse import urljoin, urlparse
 
 from playwright.async_api import async_playwright, Browser, Page, ElementHandle
@@ -272,65 +273,54 @@ class CrawlerEngine:
         finally:
             await page.close()
 
-    async def _extract_elements(self, page: Page) -> List[Dict]:
-        """Extract all interactive elements from the page DOM."""
-        elements = []
+    async def _extract_links(self, page, base_url: str) -> List[str]:
 
-        # Use Playwright's evaluate to get element data efficiently in one JS call
-        raw = await page.evaluate("""
-        () => {
-            const selectors = 'button, input, select, textarea, a[href], [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="menuitem"], [tabindex]';
-            const els = Array.from(document.querySelectorAll(selectors));
-            return els.slice(0, 200).map(el => {
-                const rect = el.getBoundingClientRect();
-                const style = window.getComputedStyle(el);
-                const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-                return {
-                    tag: el.tagName.toLowerCase(),
-                    type: el.type || null,
-                    text: (el.textContent || el.innerText || '').trim().slice(0, 100),
-                    placeholder: el.placeholder || null,
-                    aria_label: el.getAttribute('aria-label') || null,
-                    role: el.getAttribute('role') || null,
-                    name: el.name || el.getAttribute('name') || null,
-                    id: el.id || null,
-                    href: el.href || null,
-                    required: el.required || false,
-                    visible: visible,
-                    classes: Array.from(el.classList).slice(0, 5),
-                    rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-                };
-            });
-        }
-        """)
 
-        for i, el in enumerate(raw or []):
-            if not el.get("visible"):
+        raw_links = await page.eval_on_selector_all(
+            "a[href]",
+            """
+            elements => elements.map(
+                e => e.getAttribute('href')
+            )
+            """
+        )
+
+        clean_links = []
+
+        base_domain = urlparse(base_url).netloc
+
+        for link in raw_links:
+
+            if not link:
                 continue
 
-            # Generate a stable CSS selector
-            selector = self._build_selector(el)
-            element_type = self._classify_element(el)
+        # Skip invalid links
+            if (
+                link.startswith("#")
+                or link.startswith("javascript:")
+                or link.startswith("mailto:")
+                or link.startswith("tel:")
+            ):
+                continue
 
-            elements.append({
-                "element_type": element_type,
-                "tag": el.get("tag"),
-                "text": el.get("text"),
-                "placeholder": el.get("placeholder"),
-                "aria_label": el.get("aria_label"),
-                "role": el.get("role"),
-                "name": el.get("name"),
-                "id": el.get("id"),
-                "href": el.get("href"),
-                "input_type": el.get("type"),
-                "is_required": el.get("required", False),
-                "is_visible": True,
-                "selector": selector,
-                "classes": el.get("classes", []),
-                "position": el.get("rect", {}),
-            })
+            absolute = urljoin(base_url, link)
 
-        return elements
+            absolute = absolute.split("#")[0]
+
+            parsed = urlparse(absolute)
+
+        # Only crawl same domain
+            if parsed.netloc != base_domain:
+                continue
+
+            if absolute not in clean_links:
+                clean_links.append(absolute)
+
+        logger.info(
+            f"EXTRACTED {len(clean_links)} LINKS FROM {base_url}"
+        )
+
+        return clean_links
 
     async def _extract_forms(self, page: Page) -> List[Dict]:
         """Extract all forms with their fields."""
