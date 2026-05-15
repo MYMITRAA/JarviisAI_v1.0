@@ -22,7 +22,7 @@ def utcnow(): return datetime.now(timezone.utc)
 def new_uuid(): return str(uuid.uuid4())
 
 
-class ProjectType(str, enum.Enum):
+class ProjectType(str, enum.Enum):#
     WEB     = "web"
     ANDROID = "android"
     IOS     = "ios"
