@@ -141,7 +141,7 @@ class TestExecutorService:
                 test_code = generated_code
 
             else:
-                steps = test.get("steps", [])   
+                steps = test.get("steps", [])   #
 
                 playwright_steps = []
 
