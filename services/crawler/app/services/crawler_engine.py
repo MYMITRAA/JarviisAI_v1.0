@@ -215,7 +215,7 @@ class CrawlerEngine:
             response = await page.goto(
                 url,
                 timeout=settings.PAGE_LOAD_TIMEOUT_MS,
-                wait_until="networkidle",
+                wait_until="domcontentloaded",
             )
 
             status_code = response.status if response else 200
