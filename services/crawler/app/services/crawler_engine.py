@@ -307,6 +307,12 @@ class CrawlerEngine:
                 continue
 
             elements.append({
+                "element_type": el.get("tag"),
+                "selector": (
+                    f"#{el.get('id')}"
+                    if el.get("id")
+                    else el.get("tag")
+                ),
                 "tag": el.get("tag"),
                 "text": el.get("text"),
                 "type": el.get("type"),
