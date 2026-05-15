@@ -326,6 +326,8 @@ class ProjectService:
         try:
             events_url = _EVENTS_URL
             async with httpx.AsyncClient(timeout=2.0) as client:
+                print("PROJECT TARGET URL:", project.target_url)
+                print("EVENT PAYLOAD URL:", project.target_url)
                 await client.post(f"{events_url}/api/v1/events/publish", json={
                     "event": "test.started",
                     "org_id": org_id,
