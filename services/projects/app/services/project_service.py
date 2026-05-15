@@ -478,7 +478,7 @@ class ProjectService:
                         "run_id": run_id,
                         "project_id": run.project_id,
                         "org_id": run.org_id,
-                        "url": project.project_url,
+                        "url": project.target_url,
                         "project_type": project.project_type,
                         "test_config": project.test_config or {},
                         "browsers": run.browsers or ["chromium"],
