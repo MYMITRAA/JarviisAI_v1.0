@@ -126,33 +126,24 @@ async def event_consumer():
 
                     print(f"\nNEW RUN DETECTED: {run_id}")
 
-                    await client.post(
-                        f"{EXECUTOR_URL}/api/v1/execute",
+                    print(f"STARTING CRAWL FOR RUN: {run_id}")
+
+                    crawler_response = await client.post(
+                        f"{settings.CRAWLER_SERVICE_URL}/api/v1/crawl/start",
                         json={
                             "run_id": run_id,
                             "project_id": latest_event.get("project_id"),
                             "org_id": latest_event.get("org_id"),
                             "url": payload.get("url"),
-                            "test_suites": [
-                                {
-                                    "name": "Smoke Test",
-                                    "tests": [
-                                        {
-                                            "name": "Homepage Test",
-                                            "steps": [
-                                                {
-                                                    "action": "goto",
-                                                    "value": "https://example.com"
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ]
+                            "project_type": "web",
+                            "browsers": ["chromium"]
                         }
                     )
 
-                    print(f"EXECUTOR TRIGGERED FOR: {run_id}")
+                    print(
+                        f"CRAWLER RESPONSE: "
+                        f"{crawler_response.status_code}"
+                    )
 
         except Exception as e:
             print("Orchestrator Error:", e)

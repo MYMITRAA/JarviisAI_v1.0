@@ -79,7 +79,8 @@ class CrawlResult:
     app_framework: Optional[str]
     crawl_duration_ms: int
     errors: List[str]
-    app_context: Dict[str, Any]  # Structured context for AI
+    app_context: Dict[str, Any]
+    navigation_graph: List[Dict] = field(default_factory=list)  # Structured context for AI
 
 
 class CrawlerEngine:
@@ -91,6 +92,8 @@ class CrawlerEngine:
         self.visited_urls: Set[str] = set()
         self.pages: List[CrawledPage] = []
         self.errors: List[str] = []
+        self.navigation_graph: List[Dict] = []
+        self.semaphore = asyncio.Semaphore(5)
 
     async def crawl(
         self,
@@ -124,17 +127,16 @@ class CrawlerEngine:
                 ignore_https_errors=True,
                 java_script_enabled=True,
             )
-
-            # Set up auth if provided
-            if auth_config:
-                await self._setup_auth(context, url, auth_config, browser)
-
+            logger.info(
+                f"AUTH CONFIG: {auth_config}"
+            )
             # Start BFS crawl
             await self._crawl_bfs(
                 context=context,
                 start_url=url,
                 max_depth=max_depth,
                 max_pages=max_pages,
+                auth_config=auth_config,
             )
 
             await browser.close()
@@ -154,6 +156,7 @@ class CrawlerEngine:
             crawl_duration_ms=duration_ms,
             errors=self.errors,
             app_context=app_context,
+            navigation_graph=self.navigation_graph,
         )
 
 
@@ -171,43 +174,283 @@ class CrawlerEngine:
             return True  # Allow if robots.txt is unreachable
 
     async def _crawl_bfs(
-        self, context, start_url: str, max_depth: int, max_pages: int
+        self, context, start_url: str, max_depth: int, max_pages: int, auth_config=None,
     ) -> None:
         """Breadth-first crawl."""
         queue: List[tuple] = [(start_url, 0)]  # (url, depth)
         base_domain = urlparse(start_url).netloc
 
         while queue and len(self.pages) < max_pages:
-            url, depth = queue.pop(0)
+            queue.sort(
+                key=lambda x: self._score_page(x[0]),
+                reverse=True,
+            )
+
+            batch = []
+
+            while queue and len(batch) < 5:
+
+                url, depth = queue.pop(0)
+
+                batch.append(
+                    self._crawl_worker(
+                        context,
+                        url,
+                        depth,
+                        max_depth,
+                        base_domain,
+                        queue,
+                        auth_config,
+                    )
+                )
+
+            await asyncio.gather(*batch)
+    async def _crawl_worker(
+        self,
+        context,
+        url,
+        depth,
+        max_depth,
+        base_domain,
+        queue,
+        auth_config=None,
+    ):
+        async with self.semaphore:
 
             if url in self.visited_urls:
-                continue
+                return
+
             if depth > max_depth:
-                continue
+                return
+
             if not self._is_same_domain(url, base_domain):
-                continue
+                return
 
             self.visited_urls.add(url)
 
             try:
-                page_data = await self._analyze_page(context, url, depth)
+                page_data = await self._analyze_page(
+                    context,
+                    url,
+                    depth,
+                    auth_config,
+                )
+
                 if page_data:
+
                     self.pages.append(page_data)
-                    # Add discovered links to queue
+
                     for link in page_data.links_found:
+
                         if link not in self.visited_urls:
                             queue.append((link, depth + 1))
-            except Exception as e:
-                logger.warning(f"Failed to crawl {url}: {e}")
-                self.errors.append(f"{url}: {str(e)}")
 
-    async def _analyze_page(self, context, url: str, depth: int) -> Optional[CrawledPage]:
+            except Exception as e:
+                logger.warning(
+                    f"Failed to crawl {url}: {e}"
+                )
+
+                self.errors.append(
+                    f"{url}: {str(e)}"
+                )
+    async def _perform_login(
+        self,
+        page,
+        auth_config
+    ):
+
+        try:
+
+            logger.info(
+                "STARTING AUTHENTICATION"
+            )
+            logger.info(
+                f"CURRENT PAGE: {page.url}"
+            )
+            await page.wait_for_timeout(2000)
+
+
+            username_selectors = [
+                "input[type='email']",
+                "input[name*='email']",
+                "input[name*='user']",
+                "input[name*='login']",
+                "input[placeholder*='email']",
+                "input[placeholder*='user']",
+                "input[type='text']",
+            ]
+
+            username_field = None
+
+            for selector in username_selectors:
+
+                try:
+
+                    field = await page.query_selector(
+                        selector
+                    )
+
+                    if field:
+
+                        username_field = field
+
+                        logger.info(
+                            f"USERNAME FIELD FOUND: {selector}"
+                        )
+
+                        break
+
+                except:
+                    pass
+            password_inputs = await page.query_selector_all(
+                "input[type='password']"
+            )
+
+            if not password_inputs:
+
+                logger.info(
+                    "NO LOGIN PAGE DETECTED"
+                )
+
+                return False
+            logger.info(
+                "LOGIN PAGE DETECTED"
+            )
+            password_field = await page.query_selector(
+                "input[type='password']"
+            )
+            logger.info(
+                "PASSWORD FIELD DETECTED"
+            )
+
+            if not username_field:
+
+                logger.warning(
+                    "USERNAME FIELD NOT FOUND"
+                )
+
+                return False
+
+            if not password_field:
+
+                logger.warning(
+                    "PASSWORD FIELD NOT FOUND"
+                )
+
+                return False
+
+
+            await username_field.fill(
+                auth_config["username"]
+            )
+
+            await password_field.fill(
+                auth_config["password"]
+            )
+
+            logger.info(
+                "CREDENTIALS FILLED"
+            )
+
+            login_button = None
+
+            buttons = await page.query_selector_all(
+                "button, input[type='submit']"
+            )
+
+            keywords = [
+                "login",
+                "sign in",
+                "log in",
+                "continue",
+                 "submit"
+            ]
+
+            for btn in buttons:
+
+                try:
+
+                    text = (
+                        await btn.inner_text()
+                        or ""
+                    ).lower()
+
+                    if any(
+                        k in text
+                        for k in keywords
+                    ):
+
+                        login_button = btn
+
+                        logger.info(
+                            f"LOGIN BUTTON FOUND: {text}"
+                        )
+
+                        break
+
+                except:
+                    pass
+
+            old_url = page.url
+
+            if login_button:
+
+                await login_button.click()
+
+            else:
+
+                await page.keyboard.press(
+                    "Enter"
+                )
+
+            logger.info(
+                "LOGIN SUBMITTED"
+            )
+
+            try:
+
+                await page.wait_for_function(
+                    "(oldUrl) => window.location.href !== oldUrl",
+                    old_url,
+                    timeout=10000
+                )
+
+            except:
+                pass
+
+            await page.wait_for_timeout(3000)
+
+            logger.info(
+                f"POST LOGIN URL: {page.url}"
+            )
+            cookies = await page.context.cookies()
+
+            logger.info(
+                f"AUTH COOKIES COUNT: {len(cookies)}"
+            )
+
+            logger.info(
+                "AUTHENTICATION SUCCESS"
+            )
+
+            return True
+
+        except Exception as e:
+
+            logger.warning(
+                f"LOGIN FAILED: {e}"
+            )
+
+            return False
+
+    async def _analyze_page(self, context, url: str, depth: int, auth_config=None,) -> Optional[CrawledPage]:
         """Open a page and extract all elements, forms, and links."""
         import time
         page = await context.new_page()
         start = time.time()
 
         try:
+            page = await context.new_page()
             if not url.startswith(("http://", "https://")):
                 url = f"https://{url}"
 
@@ -217,6 +460,13 @@ class CrawlerEngine:
                 timeout=settings.PAGE_LOAD_TIMEOUT_MS,
                 wait_until="domcontentloaded",
             )
+            # Set up auth if provided
+            if auth_config:
+
+                await self._perform_login(
+                    page,
+                    auth_config,
+                )
 
             status_code = response.status if response else 200
 
@@ -231,6 +481,124 @@ class CrawlerEngine:
 
             load_time_ms = int((time.time() - start) * 1000)
             title = await page.title()
+            # Smart click exploration
+            clickable_elements = await page.query_selector_all(
+                """
+                a[href],
+                button,
+                input[type='submit'],
+                input[type='button']
+                """
+            )
+            for i in range(
+                min(len(clickable_elements), 10)
+            ):
+
+                try:
+
+        # re-fetch fresh element
+                    clickable_elements = (
+                        await page.query_selector_all(
+                            """
+                            a[href],
+                            button,
+                            input[type='submit'],
+                            input[type='button']
+                            """
+                        )
+                    )
+
+                    if i >= len(clickable_elements):
+                        continue
+
+                    element = clickable_elements[i]
+                    is_visible = await element.is_visible()
+
+                    if not is_visible:
+                        continue
+
+                    try:
+
+                        text = (
+                            await element.text_content()
+                            or "UNKNOWN"
+                        ).strip()
+
+                    except:
+                        text = "UNKNOWN"
+
+        # skip useless elements
+                    bad_texts = [
+                        "",
+                        "unknown",
+                        "skip to content",
+                        'press "enter" to skip to content'
+                    ]
+
+                    if text.lower().strip() in bad_texts:
+                        continue
+
+                    logger.info(
+                        f"EXPLORING CLICKABLE: {text}"
+                    )
+
+                    previous_url = page.url
+
+                    try:
+
+                        await element.scroll_into_view_if_needed()
+
+                    except:
+                        pass
+
+                    try:
+
+                        await element.click(
+                            timeout=3000
+                        )
+
+                    except Exception as click_error:
+
+                        logger.warning(
+                            f"CLICK FAILED: {click_error}"
+                        )
+
+                        continue
+
+                    try:
+
+                        await page.wait_for_load_state(
+                            "domcontentloaded",
+                             timeout=4000
+                        )
+
+                    except:
+                        pass
+
+                    await page.wait_for_timeout(1500)
+
+                    new_url = page.url
+
+                    self.navigation_graph.append({
+                        "from": previous_url,
+                        "to": new_url,
+                        "action": text,
+                    })
+
+                    logger.info(
+                        f"WORKFLOW PATH: "
+                        f"{previous_url} -> {new_url}"
+                    )
+
+                    logger.info(
+                        f"CLICK SUCCESS: {text}"
+                    )
+
+                except Exception as e:
+
+                    logger.warning(
+                        f"EXPLORATION FAILED: {e}"
+                    )
 
             # Extract all interactive elements
             elements = await self._extract_elements(page)
@@ -272,39 +640,82 @@ class CrawlerEngine:
             return None
         finally:
             await page.close()
+
     async def _extract_elements(self, page) -> List[Dict]:
         """Extract interactive elements from page."""
+        await page.wait_for_load_state("domcontentloaded")
+
+        await page.wait_for_timeout(2000)
 
         raw = await page.evaluate("""
         () => {
-            const selectors =
-                'button, input, select, textarea, a[href], [role="button"]';
+            const selectors = `
+                button,
+                input,
+                select,
+                textarea,
+                form,
+                a[href],
+                [role="button"],
+                [type="submit"],
+                [aria-expanded]
+            `;
 
             return Array.from(
                 document.querySelectorAll(selectors)
             ).slice(0, 200).map(el => ({
-                tag: el.tagName.toLowerCase(),
-                text: (el.innerText || el.textContent || '').trim(),
-                type: el.type || null,
-                placeholder: el.placeholder || null,
-                href: el.href || null,
-                id: el.id || null,
-                name: el.name || null,
-                visible: !!(
-                    el.offsetWidth ||
-                    el.offsetHeight ||
-                    el.getClientRects().length
-                )
+                    tag: el.tagName.toLowerCase(),
+
+                    text: (
+                        el.innerText ||
+                        el.textContent ||
+                        el.value ||
+                        el.getAttribute('aria-label') ||
+                        ''
+                    ).trim(),
+
+                    type: el.type || null,
+
+                    placeholder:
+                        el.placeholder ||
+                        el.getAttribute('aria-label') ||
+                        null,
+
+                    href: el.href || null,
+
+                    id: el.id || null,
+
+                    name: el.name || null,
+
+                    role: el.getAttribute('role') || null,
+
+                    action: el.getAttribute('action') || null,
+                    visible: !!(
+                        el.offsetWidth ||
+                        el.offsetHeight ||
+                        el.getClientRects().length
+                    )
             }));
         }
         """)
 
         elements = []
+        forms_detected = 0
+        inputs_detected = 0
+        buttons_detected = 0
 
         for el in raw or []:
 
             if not el.get("visible"):
                 continue
+            if el.get("tag") == "form":
+                forms_detected += 1
+
+            if el.get("tag") == "input":
+                inputs_detected += 1
+
+            if el.get("tag") == "button":
+                buttons_detected += 1
 
             elements.append({
                 "element_type": el.get("tag"),
@@ -321,57 +732,33 @@ class CrawlerEngine:
                 "id": el.get("id"),
                 "name": el.get("name"),
             })
+        logger.info(
+            f"FORMS={forms_detected} "
+            f"INPUTS={inputs_detected} "
+            f"BUTTONS={buttons_detected}"
+        )
 
         return elements
 
-    async def _extract_links(self, page, base_url: str) -> List[str]:
 
+    def _score_page(self, url: str):
 
-        raw_links = await page.eval_on_selector_all(
-            "a[href]",
-            """
-            elements => elements.map(
-                e => e.getAttribute('href')
-            )
-            """
-        )
+        score = 0
 
-        clean_links = []
+        important = [
+            "dashboard",
+            "checkout",
+            "login",
+            "settings",
+            "admin",
+        ]
 
-        base_domain = urlparse(base_url).netloc
+        for word in important:
 
-        for link in raw_links:
+            if word in url.lower():
+                score += 10
 
-            if not link:
-                continue
-
-        # Skip invalid links
-            if (
-                link.startswith("#")
-                or link.startswith("javascript:")
-                or link.startswith("mailto:")
-                or link.startswith("tel:")
-            ):
-                continue
-
-            absolute = urljoin(base_url, link)
-
-            absolute = absolute.split("#")[0]
-
-            parsed = urlparse(absolute)
-
-        # Only crawl same domain
-            if parsed.netloc != base_domain:
-                continue
-
-            if absolute not in clean_links:
-                clean_links.append(absolute)
-
-        logger.info(
-            f"EXTRACTED {len(clean_links)} LINKS FROM {base_url}"
-        )
-#
-        return clean_links
+        return score
 
     async def _extract_forms(self, page: Page) -> List[Dict]:
         """Extract all forms with their fields."""

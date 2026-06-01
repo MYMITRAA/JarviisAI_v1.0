@@ -42,6 +42,39 @@ class TestGenerationService:
         crawl_result = payload["crawl_result"]
 
         logger.info(f"Generating tests for run {run_id} — {crawl_result['pages_crawled']} pages")
+        pages = crawl_result.get("pages", [])
+
+        logger.info(f"TOTAL PAGES OBJECTS: {len(pages)}")
+
+        for page in pages[:5]:
+
+            logger.info(
+                f"PAGE URL: {page.get('url')}"
+            )
+
+            elements = page.get("elements", [])
+
+            logger.info(
+                f"TOTAL ELEMENTS: {len(elements)}"
+            )
+
+            interactive = [
+                e for e in elements
+                if e.get("tag") in ["input", "button", "a", "form"]
+            ]
+
+            logger.info(
+                f"INTERACTIVE ELEMENTS: {len(interactive)}"
+            )
+
+            for element in interactive[:50]:
+
+                logger.info(
+                    f"TAG={element.get('tag')} "
+                    f"TEXT={element.get('text')} "
+                    f"TYPE={element.get('attributes', {}).get('type')} "
+                    f"HREF={element.get('attributes', {}).get('href')}"
+                )
 
         # Build prompt
         user_prompt = self._build_prompt(crawl_result, payload.get("url", ""))
@@ -61,6 +94,18 @@ class TestGenerationService:
             f"Generated {result['test_plan']['total_tests']} tests for run {run_id} "
             f"using {model_used}"
         )
+        logger.info(f"FINAL GENERATED RESPONSE: {result}")
+        clean_url = payload.get("url", "").strip()
+
+        for suite in result.get("test_suites", []):
+
+            for test in suite.get("tests", []):
+
+                for step in test.get("steps", []):
+
+                    if step.get("action") == "goto":
+
+                        step["value"] = clean_url
 
         return {
             **result,
@@ -81,35 +126,178 @@ class TestGenerationService:
                 page["interactive_elements"] = page["interactive_elements"][:settings.MAX_ELEMENTS_PER_PAGE]
 
         context = crawl_result.get("app_context", {})
+        # AI-driven interaction planning
+        ai_actions = []
+
+        pages = crawl_result.get("pages", [])
+
+        for page in pages[:5]:
+
+            for element in page.get("elements", [])[:20]:
+
+                selector = element.get("selector")
+
+                if not selector:
+                    continue
+
+                element_type = (
+                    element.get("element_type", "")
+                    .lower()
+                )
+
+                text = (
+                    element.get("text", "")
+                    .lower()
+                )
+
+        # Login buttons
+                if (
+                    "login" in text
+                    or "sign in" in text
+                ):
+
+                    ai_actions.append({
+                        "action": "click",
+                        "selector": selector,
+                    })
+
+        # Inputs
+                elif element_type == "input":
+
+                    ai_actions.append({
+                        "action": "fill",
+                        "selector": selector,
+                        "value": "test@example.com",
+                    })
+                elif (
+                    "success" in text
+                    or "welcome" in text
+                    or "dashboard" in text
+                ):
+
+                    ai_actions.append({
+                        "action": "assert_text",
+                        "text": "Login",
+                    })
         suggested_tests = []
+        detected_features = {
+            "has_login": any(
+                (
+                    element.get("tag", "").lower() == "input"
+                    and (
+                        "email" in element.get("text", "").lower()
+                        or "password" in element.get("text", "").lower()
+                        or "username" in element.get("text", "").lower()
+                        or "login" in element.get("text", "").lower()
+                        or "sign in" in element.get("text", "").lower()
+                    )
+                )
+                for page in pages
+                for element in page.get("elements", [])
+            ),
 
-        for page in context.get("pages", []):
+            "has_signup": any(
+                (
+                    "signup" in element.get("text", "").lower()
+                    or "register" in element.get("text", "").lower()
+                    or "create account" in element.get("text", "").lower()
+                    or "create your amazon account" in element.get("text", "").lower()
+                    or "new customer" in element.get("text", "").lower()
+                )
+                for page in pages
+                for element in page.get("elements", [])
+            ),
 
-            actions = page.get("possible_actions", [])
+            "has_search": any(
+                "search" in (
+                    element.get("text", "")
+                    .lower()
+                )
+                for page in pages
+                for element in page.get("elements", [])
+            ),
 
-        if "login" in actions:
+            "has_checkout": any(
+                "checkout" in (
+                    element.get("text", "")
+                    .lower()
+                )
+                or "payment" in (
+                    element.get("text", "")
+                    .lower()
+                )
+                for page in pages
+                for element in page.get("elements", [])
+            ),
+
+            "has_forms": any(
+                element.get("tag") == "form"
+                for page in pages
+                for element in page.get("elements", [])
+            ),
+        }
+
+        for page in crawl_result.get("pages", []):
+
+            for element in page.get("elements", []):
+
+                text = (
+                    element.get("text", "")
+                    .lower()
+                )
+
+                tag = (
+                    element.get("tag", "")
+                    .lower()
+                )
+
+                if "login" in text or "sign in" in text:
+                    detected_features["has_login"] = True
+
+                if "signup" in text or "register" in text:
+                    detected_features["has_signup"] = True
+
+                if "search" in text:
+                    detected_features["has_search"] = True
+
+                if "checkout" in text or "payment" in text:
+                    detected_features["has_checkout"] = True
+
+                if tag == "form":
+                    detected_features["has_forms"] = True
+
+
+        if detected_features["has_login"]:
+
             suggested_tests.append(
-                "Generate login validation tests with valid and invalid credentials."
-        )
+                "Generate login workflow tests."
+            )
 
-        if "signup" in actions:
+        if detected_features["has_forms"]:
+
             suggested_tests.append(
-                "Generate user registration flow tests."
-        )
+                "Generate form validation tests."
+            )
 
-        if "search" in actions:
+        if detected_features["has_search"]:
+
             suggested_tests.append(
                 "Generate search functionality tests."
+            )
+
+        if detected_features["has_checkout"]:
+
+            suggested_tests.append(
+                "Generate checkout flow tests."
+            )
+
+
+        logger.info(
+            f"DETECTED FEATURES: {detected_features}"
         )
 
-        if "checkout" in actions:
-            suggested_tests.append(
-                "Generate checkout and payment workflow tests."
-        )
-
-        if "submit_form" in actions:
-            suggested_tests.append(
-                "Generate form validation and submission tests."
+        logger.info(
+            f"SUGGESTED TESTS: {suggested_tests}"
         )
 
         return template.render(
@@ -121,6 +309,7 @@ class TestGenerationService:
             has_checkout=context.get("has_checkout", False),
             pages=context.get("pages", pages[:settings.MAX_PAGES_IN_CONTEXT]),
             suggested_tests=suggested_tests,
+            ai_actions=ai_actions[:20],
             min_tests=5,
             max_tests=settings.MAX_TESTS_PER_RUN,
         )
@@ -128,6 +317,8 @@ class TestGenerationService:
     def _parse_response(self, raw_text: str, run_id: str) -> Dict:
         """Parse and validate the LLM JSON response."""
         # Strip any accidental markdown fences
+        if isinstance(raw_text, dict):
+            return raw_text
         text = raw_text.strip()
         text = re.sub(r'^```json\s*', '', text, flags=re.MULTILINE)
         text = re.sub(r'^```\s*', '', text, flags=re.MULTILINE)

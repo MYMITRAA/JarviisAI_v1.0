@@ -11,7 +11,7 @@ class ProjectCreate(BaseModel):
     name: str
     slug: str
     description: Optional[str] = None
-    target_url: str | None = None
+    project_url : str | None = None
     project_type: ProjectType = ProjectType.WEB
     project_url: Optional[str] = None
     test_config: Optional[Dict[str, Any]] = {}
@@ -44,7 +44,7 @@ class ProjectResponse(BaseModel):
     name: str
     slug: str
     description: Optional[str]
-    target_url: str | None = None
+    project_url : str | None = None
     project_type: str
     project_url: Optional[str]
     is_active: bool

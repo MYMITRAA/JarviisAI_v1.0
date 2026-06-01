@@ -82,7 +82,7 @@ async def test_usage_check_429_when_limit_hit():
             mock_db.execute.return_value.first.return_value = MM(plan="free", trial_ends_at=None)
 
             svc = ProjectService(mock_db)
-            svc.get = AsyncMock(return_value=MM(project_url="https://example.com", id="proj-1"))
+            svc.get = AsyncMock(return_value=MM(project_url"dynamic-url", id="proj-1"))
 
             from app.schemas.project import TestRunCreate, TriggerType
             

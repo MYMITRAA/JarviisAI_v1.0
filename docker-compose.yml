@@ -138,7 +138,7 @@ services:
     - jarviis-net
     volumes:
     - ./services/crawler:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8003
     shm_size: 2gb
   ai-orchestrator:
     build:
@@ -166,7 +166,7 @@ services:
     - jarviis-net
     volumes:
     - ./services/ai-orchestrator:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8004
   test-executor:
     build:
       context: ./services/test-executor
@@ -196,7 +196,7 @@ services:
     - jarviis-net
     volumes:
     - ./services/test-executor:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8005
     shm_size: 2gb
   deploy:
     build:
@@ -772,7 +772,7 @@ services:
     - jarviis-net
     volumes:
     - ./services/notifications:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8019 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8019
   analytics:
     build:
       context: ./services/analytics

@@ -94,10 +94,21 @@ async def health():
 
 @app.post("/api/v1/crawl/start")
 async def start_crawl(data: CrawlRequest, background_tasks: BackgroundTasks):
-    """Accept a crawl job and process it in the background."""
-    background_tasks.add_task(_run_crawl, data)
-    return {"message": "Crawl started", "run_id": data.run_id}
 
+    logger.info("CRAWLER API ENDPOINT HIT")
+
+    logger.info(f"RUN ID: {data.run_id}")
+
+    logger.info(f"TARGET URL: {data.url}")
+
+    background_tasks.add_task(_run_crawl, data)
+
+    logger.info("BACKGROUND CRAWL TASK STARTED")
+
+    return {
+        "message": "Crawl started",
+        "run_id": data.run_id
+    }
 
 async def _run_crawl(data: CrawlRequest) -> None:
     """
@@ -113,7 +124,11 @@ async def _run_crawl(data: CrawlRequest) -> None:
     await _update_run_status(data.run_id, "crawling", stage="crawling")
 
     try:
+
         engine = CrawlerEngine()
+        logger.info(
+            f"TEST CONFIG: {data.test_config}"
+        )
         result = await engine.crawl(
             url=data.url,
             max_depth=data.max_depth or settings.MAX_CRAWL_DEPTH,
@@ -142,6 +157,10 @@ async def _run_crawl(data: CrawlRequest) -> None:
 
 async def _send_to_ai_orchestrator(data: CrawlRequest, crawl_result) -> None:
     """Forward crawl result to AI Orchestrator for test generation."""
+    logger.info("CRAWL COMPLETED SUCCESSFULLY")
+    logger.info(f"PAGES CRAWLED: {crawl_result.pages_crawled}")
+    logger.info(f"FORMS FOUND: {crawl_result.form_count}")
+    logger.info(f"ELEMENTS FOUND: {crawl_result.element_count}")
     payload = {
         "run_id": data.run_id,
         "project_id": data.project_id,
@@ -168,6 +187,7 @@ async def _send_to_ai_orchestrator(data: CrawlRequest, crawl_result) -> None:
                 f"{settings.AI_ORCHESTRATOR_URL}/api/v1/generate/tests",
                 json=payload,
             )
+            logger.info("CRAWL RESULT SENT TO AI ORCHESTRATOR")
             if resp.status_code not in (200, 202):
                 logger.error(f"AI orchestrator rejected payload: {resp.status_code} {resp.text}")
                 await _update_run_status(data.run_id, "error", error="AI orchestrator error", stage="generate")

@@ -15,6 +15,9 @@ Suggested Test Focus Areas:
 - {{ item }}
 {% endfor %}
 
+AI Interaction Suggestions:
+{{ ai_actions }}
+
 ## Pages Discovered
 {% for page in pages %}
 ### Page: {{ page.url }}

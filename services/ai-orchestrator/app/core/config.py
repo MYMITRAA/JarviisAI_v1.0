@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     REDIS_URL: str = "redis://:redis_secret@redis:6379/4"
     PROJECTS_SERVICE_URL: str = "http://projects:8002"
+    CRAWLER_SERVICE_URL: str = "http://crawler:8003"
     TEST_EXECUTOR_URL: str = "http://test-executor:8005"
 
     # AI Models — always use the latest Sonnet for best quality/speed balance

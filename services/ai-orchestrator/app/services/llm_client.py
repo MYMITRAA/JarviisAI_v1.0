@@ -102,29 +102,103 @@ class LLMClient:
         matches = re.findall(r'https?://[^\s]+', user_prompt)
 
         target_url = matches[-1] if matches else ""
+        target_url = target_url.replace("...')`", "")
+        target_url = target_url.replace("...", "")
+        target_url = target_url.strip()
 
-        fallback_test = f"""
-        {{
-          "test_plan": {{
-            "summary": "Fallback smoke test",
-            "total_tests": 1,
-            "coverage_areas": ["smoke"],
-            "estimated_duration_seconds": 30
-          }},
-          "test_suites": [
-            {{
-              "name": "Smoke Suite",
-              "tests": [
-                {{
-                  "name": "Homepage Test",
-                  "description": "Basic smoke test",
-                  "code": "test('Homepage Test', async ({{ page }}) => {{ await page.goto('{target_url}'); await expect(page).toHaveTitle(/.+/); }});"
-                }}
-              ]
-            }}
-          ]
-        }}
-        """
+        fallback_test = {
+            "test_plan": {
+                "summary": "AI-generated smoke tests",
+                "total_tests": 3,
+                "coverage_areas": [
+                    "authentication",
+                    "validation",
+                    "navigation"
+                ],
+                "estimated_duration_seconds": 90
+            },
+            "test_suites": [
+                {
+                    "name": "Smoke Suite",
+                    "tests": [
+
+                        {
+                            "name": "Valid Login Test",
+                            "steps": [
+                                {
+                                    "action": "goto",
+                                    "value": target_url
+                                },
+                                {
+                                    "action": "fill",
+                                    "selector": "input[type='text']",
+                                    "value": "practice"
+                                },
+                                {
+                                    "action": "fill",
+                                    "selector": "input[type='password']",
+                                    "value": "SuperSecretPassword!"
+                                },
+                                {
+                                    "action": "click",
+                                    "selector": "button[type='submit']"
+                                },
+                                {
+                                    "action": "assert_url",
+                                    "value": "secure"
+                                }
+                            ]
+                        },
+
+                        {
+                            "name": "Invalid Login Test",
+                            "steps": [
+                                {
+                                    "action": "goto",
+                                    "value": target_url
+                                },
+                                {
+                                    "action": "fill",
+                                    "selector": "input[type='text']",
+                                    "value": "wronguser"
+                                },
+                                {
+                                    "action": "fill",
+                                    "selector": "input[type='password']",
+                                    "value": "wrongpassword"
+                                },
+                                {
+                                    "action": "click",
+                                    "selector": "button[type='submit']"
+                                },
+                                {
+                                    "action": "assert_text",
+                                    "text": "Your username is invalid!"
+                                }
+                            ]
+                        },
+
+                        {
+                            "name": "Empty Form Validation Test",
+                            "steps": [
+                                {
+                                    "action": "goto",
+                                    "value": target_url
+                                },
+                                {
+                                    "action": "click",
+                                    "selector": "button[type='submit']"
+                                },
+                                {
+                                    "action": "assert_text",
+                                    "text": "Your username is invalid!"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
 
         return fallback_test, "fallback", {}
 

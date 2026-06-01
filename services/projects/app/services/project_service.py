@@ -47,9 +47,8 @@ class ProjectService:
             name=data.name,
             slug=data.slug,
             description=data.description,
-            target_url=data.target_url,
+            project_url =data.project_url ,
             project_type=data.project_type,
-            project_url=data.project_url,
             test_config=data.test_config or {},
         )
         self.db.add(project)
@@ -322,19 +321,20 @@ class ProjectService:
         await self.db.commit()
         await self.db.refresh(run)
         print("FINAL TEST METADATA FROM DB:", run.test_metadata)
+        
         # ── Publish event ─────────────────────────────────────
         try:
             events_url = _EVENTS_URL
             async with httpx.AsyncClient(timeout=2.0) as client:
-                print("PROJECT TARGET URL:", project.target_url)
-                print("EVENT PAYLOAD URL:", project.target_url)
+                print("PROJECT TARGET URL:", project.project_url )
+                print("EVENT PAYLOAD URL:", project.project_url )
                 await client.post(f"{events_url}/api/v1/events/publish", json={
                     "event": "test.started",
                     "org_id": org_id,
                     "project_id": project_id,
                     "actor_id": user_id,
                     "source_service": "projects",
-                    "payload": {"run_id": str(run.id), "trigger_type": data.trigger_type, "plan": plan, "url": project.target_url,},
+                    "payload": {"run_id": str(run.id), "trigger_type": data.trigger_type, "plan": plan, "url": project.project_url,},
                 })
         except Exception:
             pass
@@ -478,7 +478,12 @@ class ProjectService:
                         "run_id": run_id,
                         "project_id": run.project_id,
                         "org_id": run.org_id,
-                        "url": project.target_url,
+                        "url": project.project_url,
+                        "auth": {
+                            "login_url": project.project_url,
+                            "username": project.login_username,
+                            "password": project.login_password,
+                        },
                         "project_type": project.project_type,
                         "test_config": project.test_config or {},
                         "browsers": run.browsers or ["chromium"],
