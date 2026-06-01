@@ -83,7 +83,7 @@ class CrawlRequest(BaseModel):
     max_depth: Optional[int] = None
     max_pages: Optional[int] = None
 
-
+#
 setup_metrics(app, service_name="crawler")
 
 
