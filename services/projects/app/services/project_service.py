@@ -479,7 +479,7 @@ class ProjectService:
                         "project_id": run.project_id,
                         "org_id": run.org_id,
                         "url": project.project_url,
-                        "auth": {
+                        "auth_config": {
                             "login_url": project.project_url,
                             "username": project.login_username,
                             "password": project.login_password,

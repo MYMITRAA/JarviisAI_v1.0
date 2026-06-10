@@ -129,11 +129,14 @@ async def _run_crawl(data: CrawlRequest) -> None:
         logger.info(
             f"TEST CONFIG: {data.test_config}"
         )
+        logger.info(
+            f"AUTH CONFIG FROM REQUEST: {data.auth_config}"
+        )
         result = await engine.crawl(
             url=data.url,
             max_depth=data.max_depth or settings.MAX_CRAWL_DEPTH,
             max_pages=data.max_pages or settings.MAX_PAGES_PER_CRAWL,
-            auth_config=data.test_config.get("auth"),
+            auth_config=data.auth_config,
             timeout_seconds=settings.CRAWL_TIMEOUT_SECONDS,
         )
 

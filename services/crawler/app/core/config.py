@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     MAX_CRAWL_DEPTH: int = 3
     MAX_PAGES_PER_CRAWL: int = 50
     CRAWL_TIMEOUT_SECONDS: int = 120
-    PAGE_LOAD_TIMEOUT_MS: int = 15000
+    PAGE_LOAD_TIMEOUT_MS: int = 45000
     SCREENSHOT_BUCKET: str = "jarviis-screenshots"
     internal_service_secret: str = "s2a3d4f5g6h7j8k9l1w2e3s4f5v3c6n3cfds23"
 

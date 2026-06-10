@@ -93,7 +93,30 @@ class CrawlerEngine:
         self.pages: List[CrawledPage] = []
         self.errors: List[str] = []
         self.navigation_graph: List[Dict] = []
+        self.explored_paths = set()
         self.semaphore = asyncio.Semaphore(5)
+        self.detected_bugs = []
+        self.is_authenticated = False
+        self.start_url = ""
+        self.failed_api_calls = []
+
+    def _add_bug(
+        self,
+        bug_type,
+        severity,
+        page_url,
+        description
+    ):
+        self.detected_bugs.append({
+            "type": bug_type,
+            "severity": severity,
+            "url": page_url,
+            "description": description,
+        })
+
+        logger.warning(
+            f"BUG DETECTED | {bug_type} | {severity} | {page_url}"
+        )
 
     async def crawl(
         self,
@@ -127,6 +150,7 @@ class CrawlerEngine:
                 ignore_https_errors=True,
                 java_script_enabled=True,
             )
+            self.start_url = url
             logger.info(
                 f"AUTH CONFIG: {auth_config}"
             )
@@ -241,6 +265,24 @@ class CrawlerEngine:
                     self.pages.append(page_data)
 
                     for link in page_data.links_found:
+                        bad_patterns = [
+                            "?share=",
+                            "&nb=",
+                            "facebook.com",
+                            "linkedin.com",
+                            "reddit.com",
+                            "x.com",
+                            "twitter.com",
+                            "threads.net",
+                            "telegram.me",
+                            "t.me",
+                        ]
+
+                        if any(
+                            pattern in link
+                            for pattern in bad_patterns
+                        ):
+                            continue
 
                         if link not in self.visited_urls:
                             queue.append((link, depth + 1))
@@ -268,16 +310,26 @@ class CrawlerEngine:
                 f"CURRENT PAGE: {page.url}"
             )
             await page.wait_for_timeout(2000)
-
+            try:
+                await page.wait_for_load_state(
+                    "networkidle",
+                    timeout=5000
+                )
+            except:
+                pass
 
             username_selectors = [
+                "input[name='username']",
+                "input[name*='user']",
+                "input[id*='user']",
+                "input[placeholder*='Username']",
+                "input[placeholder*='username']",
+                "input[placeholder*='Email']",
+                "input[placeholder*='email']",
                 "input[type='email']",
                 "input[name*='email']",
-                "input[name*='user']",
                 "input[name*='login']",
-                "input[placeholder*='email']",
-                "input[placeholder*='user']",
-                "input[type='text']",
+                "input[type='text']"
             ]
 
             username_field = None
@@ -303,9 +355,16 @@ class CrawlerEngine:
                 except:
                     pass
             password_inputs = await page.query_selector_all(
-                "input[type='password']"
+                """
+                input[type='password'],
+                input[name*='password'],
+                input[placeholder*='Password'],
+                input[placeholder*='password']
+                """
             )
-
+            logger.info(
+                f"PASSWORD INPUT COUNT: {len(password_inputs)}"
+            )
             if not password_inputs:
 
                 logger.info(
@@ -428,10 +487,20 @@ class CrawlerEngine:
             logger.info(
                 f"AUTH COOKIES COUNT: {len(cookies)}"
             )
+            if page.url == old_url:
 
+                self._add_bug(
+                    bug_type="LOGIN_FAILURE",
+                    severity="HIGH",
+                    page_url=page.url,
+                    description="Login submitted but URL did not change"
+                )
+                return False
+        
             logger.info(
                 "AUTHENTICATION SUCCESS"
             )
+            self.is_authenticated = True
 
             return True
 
@@ -446,28 +515,392 @@ class CrawlerEngine:
     async def _analyze_page(self, context, url: str, depth: int, auth_config=None,) -> Optional[CrawledPage]:
         """Open a page and extract all elements, forms, and links."""
         import time
-        page = await context.new_page()
         start = time.time()
 
         try:
             page = await context.new_page()
+            console_errors = []
+            failed_images = []
+            failed_api_calls = []
+            failed_network_requests = []
+            page_errors = []
+            browser_js_errors = []
+
+            page.on(
+                "console",
+                lambda msg: (
+                    console_errors.append(msg.text)
+                    if msg.type == "error"
+                    else None
+                )
+            )
+            page.on(
+                "pageerror",
+                lambda error: page_errors.append({
+                    "message": str(error),
+                    "stack": getattr(error, "stack", "")
+                })
+            )
+            async def handle_response(response):
+
+                try:
+                    content_type = (
+                        response.headers.get(
+                            "content-type",
+                            ""
+                        ).lower()
+                    )
+                    if (
+                        (
+                            response.request.resource_type == "image"
+                            or "image/" in content_type
+                        )
+                        and response.status in [
+                                400,
+                                401,
+                                403,
+                                404,
+                                410,
+                                500,
+                                502,
+                                503
+                        ]
+                    ):
+
+                        failed_images.append(
+                            {
+                                "url": response.url,
+                                "status": response.status
+                            }
+                        )
+                    resource_type = (
+                        response.request.resource_type
+                    )
+
+                    if resource_type in [
+                        "xhr",
+                        "fetch"
+                    ]:
+                        logger.info(
+                            f"API CALL: "
+                            f"{response.status} "
+                            f"{response.request.resource_type} "
+                            f"{response.url}"
+                        )
+                    resource_type = (
+                        response.request.resource_type
+                    )
+
+                    if (
+                        resource_type in [
+                            "xhr",
+                            "fetch"
+                        ]
+                        and response.status >= 400
+                    ):
+                        logger.info(
+                            f"FAILED API DETECTED: "
+                            f"{response.status} "
+                            f"{response.url}"
+                        )
+                        self.failed_api_calls.append({
+                            "url": response.url,
+                            "status": response.status
+                        })
+
+                except Exception:
+                    pass
+
+            page.on(
+                "response",
+                handle_response
+            )
+            async def handle_request_failed(request):
+
+                try:
+
+                    failed_network_requests.append({
+                        "url": request.url,
+                        "resource_type": request.resource_type,
+                        "error": (
+                            request.failure.get("errorText")
+                            if request.failure
+                            else "Unknown"
+                        )
+                    })
+
+                except Exception:
+                    pass
+                page.on(
+                    "requestfailed",
+                    handle_request_failed
+                )
             if not url.startswith(("http://", "https://")):
                 url = f"https://{url}"
 
             # Navigate with network idle wait for SPA
+            await page.add_init_script("""
+            window.__jarviisJsErrors = [];
+
+            window.addEventListener(
+                'unhandledrejection',
+                function(event) {
+
+                    window.__jarviisJsErrors.push({
+                        type: 'unhandled_promise_rejection',
+                        message: String(event.reason)
+                    });
+
+                }
+            );
+            window.addEventListener(
+                'error',
+                function(event) {
+
+                    if (
+                        event.target &&
+                        (event.target.src || event.target.href)
+                    ) {
+
+                        window.__jarviisJsErrors.push({
+                            type: 'resource_load_failure',
+                            url: event.target.src || event.target.href
+                        });
+
+                    }
+
+                },
+                true
+            );
+            document.addEventListener(
+                'securitypolicyviolation',
+                function(event) {
+
+                    window.__jarviisJsErrors.push({
+                        type: 'csp_violation',
+                        blocked: event.blockedURI,
+                        directive: event.violatedDirective
+                    });
+
+                }
+            );
+            """)
             response = await page.goto(
                 url,
                 timeout=settings.PAGE_LOAD_TIMEOUT_MS,
                 wait_until="domcontentloaded",
             )
+            
+            try:
+                browser_js_errors = await page.evaluate(
+                    "() => window.__jarviisJsErrors || []"
+                )
+
+            except Exception as e:
+                logger.warning(
+                    f"JS ERROR COLLECTION FAILED: {e}"
+                )
+
+                browser_js_errors = []
+            seen_images = set()
+
+            for image in failed_images:
+
+                key = (
+                    image["url"],
+                    image["status"]
+                )
+                if key in seen_images:
+                    continue
+
+                seen_images.add(key)
+
+                self._add_bug(
+                    bug_type="BROKEN_IMAGE",
+                    severity="MEDIUM",
+                    page_url=page.url,
+                    description=(
+                        f"Broken image detected: "
+                        f"{image['url']} "
+                        f"(HTTP {image['status']})"
+                    )
+                )
+            seen_api_calls = set()
+            if failed_api_calls:
+                logger.info(
+                    f"FAILED API COUNT: {len(failed_api_calls)}"
+                )
+
+            for api in self.failed_api_calls:
+
+                key = (
+                    api["url"],
+                    api["status"]
+                )
+
+                if key in seen_api_calls:
+                    continue
+                seen_api_calls.add(key)
+                logger.warning(
+                    f"FAILED API: "
+                    f"{api['status']} "
+                    f"{api['url']}"
+                )
+                self._add_bug(
+                    bug_type="API_FAILURE",
+                    severity="HIGH",
+                    page_url=page.url,
+                    description=(
+                        f"API failed: "
+                        f"{api['url']} "
+                        f"(HTTP {api['status']})"
+                    )
+                )
+            seen_network_errors = set()
+            if failed_network_requests:
+                logger.info(
+                    f"FAILED NETWORK COUNT: {len(failed_network_requests)}"
+                )
+            for network_error in failed_network_requests:
+
+                key = (
+                    network_error["url"],
+                    network_error["error"]
+                )
+
+                if key in seen_network_errors:
+                    continue
+
+                seen_network_errors.add(key)
+                error_text = (
+                    network_error["error"]
+                ).lower()
+
+                severity = "HIGH"
+
+                if "timed_out" in error_text:
+                    severity = "MEDIUM"
+
+                if "aborted" in error_text:
+                    severity = "LOW"
+
+                self._add_bug(
+                    bug_type="NETWORK_FAILURE",
+                    severity=severity,
+                    page_url=page.url,
+                    description=(
+                        f"{network_error['error']} "
+                        f"on "
+                        f"{network_error['url']}"
+                    )
+                )
+            from urllib.parse import urlparse
+
+            current_domain = urlparse(
+                page.url
+            ).netloc
+
+            base_domain = urlparse(
+                self.start_url
+            ).netloc
+
+            if current_domain == base_domain:
+                seen_js_errors = set()
+                
+                for error in page_errors:
+                    error_message = error.get("message", "")
+                    error_stack = error.get("stack", "")
+                    file_name = "Unknown"
+                    line_number = "Unknown"
+                    column_number = "Unknown"
+                    import re
+                    match = re.search(
+                        r'([^\s]+(?:\.js|<anonymous>)):(\d+):(\d+)',
+                        error_stack
+                    )
+                    if match:
+                        file_name = match.group(1)
+                        line_number = match.group(2)
+                        column_number = match.group(3)
+                    if error_message in seen_js_errors:
+                        continue
+
+                    seen_js_errors.add(error_message)
+                    self._add_bug(
+                        bug_type="JS_ERROR",
+                        severity="CRITICAL",
+                        page_url=page.url,
+                        description=(
+                            f"Runtime Exception: {error_message[:500]}"
+                            f"\nFile: {file_name}"
+                            f"\nLine: {line_number}"
+                            f"\nColumn: {column_number}"
+                            f"\nStack: {error_stack[:1000]}"
+                        )
+                    )
+                    
+                for error in browser_js_errors:
+                    error_message = str(error)
+
+                    if error_message in seen_js_errors:
+                        continue
+
+                    seen_js_errors.add(error_message)
+
+                    self._add_bug(
+                        bug_type="JS_ERROR",
+                        severity="HIGH",
+                        page_url=page.url,
+                        description=str(error)[:500],
+                    )
+                for error in console_errors:
+                    error_message = str(error)
+
+                    if error_message in seen_js_errors:
+                        continue
+
+                    seen_js_errors.add(error_message)
+                    error_text = str(error).lower()
+
+                    if (
+                        "failed to load resource" in error_text
+                        and any(
+                            status in error_text
+                            for status in [
+                                "400",
+                                "401",
+                                "403",
+                                "404",
+                                "409",
+                                "500",
+                                "502",
+                                "503"
+                            ]
+                        )
+                    ):
+                        continue
+
+                    self._add_bug(
+                        bug_type="JS_ERROR",
+                        severity="HIGH",
+                        page_url=page.url,
+                        description=f"Console Error: {error_message[:500]}",
+                    )
+            if response and response.status >= 400:
+
+                self._add_bug(
+                    bug_type="HTTP_ERROR",
+                    severity="HIGH",
+                    page_url=url,
+                    description=f"HTTP Status {response.status}"
+                )
             # Set up auth if provided
-            if auth_config:
+            if auth_config and not self.is_authenticated:
 
                 await self._perform_login(
                     page,
                     auth_config,
                 )
-
             status_code = response.status if response else 200
 
             # Skip error pages, assets, and binary files
@@ -482,19 +915,38 @@ class CrawlerEngine:
             load_time_ms = int((time.time() - start) * 1000)
             title = await page.title()
             # Smart click exploration
-            clickable_elements = await page.query_selector_all(
-                """
-                a[href],
-                button,
-                input[type='submit'],
-                input[type='button']
-                """
-            )
+            # Smart click exploration
+            try:
+
+                clickable_elements = await page.query_selector_all(
+                    """
+                    a[href],
+                    button,
+                    input[type='submit'],
+                    input[type='button']
+                    """
+                )
+            except Exception as e:
+
+                logger.warning(
+                    f"CLICKABLE EXTRACTION FAILED: {e}"
+                )
+
+                clickable_elements = []
             for i in range(
                 min(len(clickable_elements), 10)
             ):
 
                 try:
+                    try:
+
+                        await page.wait_for_load_state(
+                            "domcontentloaded",
+                            timeout=3000
+                        )
+
+                    except:
+                        pass
 
         # re-fetch fresh element
                     clickable_elements = (
@@ -512,7 +964,14 @@ class CrawlerEngine:
                         continue
 
                     element = clickable_elements[i]
-                    is_visible = await element.is_visible()
+                    try:
+                        await element.scroll_into_view_if_needed()
+                    except:
+                        continue
+                    try:
+                        is_visible = await element.is_visible()
+                    except:
+                        continue
 
                     if not is_visible:
                         continue
@@ -538,11 +997,32 @@ class CrawlerEngine:
                     if text.lower().strip() in bad_texts:
                         continue
 
+                    previous_url = page.url
+                    path_key = text.lower().strip()
+
+                    if path_key in self.explored_paths:
+
+                        continue
+
+                    self.explored_paths.add(path_key)
+                    if text.startswith("http"):
+                        continue
+                    logout_keywords = [
+                        "logout",
+                        "log out",
+                        "sign out",
+                        "signout",
+                        "exit"
+                    ]
+
+                    if any(
+                        keyword in text.lower()
+                        for keyword in logout_keywords
+                    ):
+                        continue
                     logger.info(
                         f"EXPLORING CLICKABLE: {text}"
                     )
-
-                    previous_url = page.url
 
                     try:
 
@@ -552,9 +1032,43 @@ class CrawlerEngine:
                         pass
 
                     try:
+                        href = await element.get_attribute(
+                            "href"
+                        )
+
+                        if href:
+
+                            from urllib.parse import (
+                                urljoin,
+                                urlparse
+                            )
+
+                            target_url = urljoin(
+                                page.url,
+                                href
+                            )
+
+                            base_domain = urlparse(
+                                self.start_url
+                            ).netloc
+
+                            target_domain = urlparse(
+                                target_url
+                            ).netloc
+
+                            if (
+                                target_domain
+                                and target_domain != base_domain
+                            ):
+                                continue
+
+                        await element.scroll_into_view_if_needed()
+
+                        await page.wait_for_timeout(300)
 
                         await element.click(
-                            timeout=3000
+                            timeout=5000,
+                            no_wait_after=True
                         )
 
                     except Exception as click_error:
@@ -569,15 +1083,61 @@ class CrawlerEngine:
 
                         await page.wait_for_load_state(
                             "domcontentloaded",
-                             timeout=4000
+                            timeout=4000
                         )
 
                     except:
                         pass
 
-                    await page.wait_for_timeout(1500)
+                    try:
+                        await page.wait_for_load_state(
+                            "networkidle",
+                            timeout=2000
+                        )
+                    except:
+                        pass
 
                     new_url = page.url
+                    try:
+                        await page.wait_for_load_state(
+                            "domcontentloaded",
+                            timeout=5000
+                        )
+
+                    except:
+                        pass
+
+                    await page.wait_for_timeout(1000)
+                    if page.is_closed():
+                        continue
+                    if new_url == previous_url:
+                        logger.info(
+                            f"SAME PAGE CLICK SKIPPED: {text}"
+                        )
+                        await page.wait_for_timeout(1500)
+                        continue
+                    from urllib.parse import urlparse
+
+                    base_domain = urlparse(
+                        self.start_url
+                    ).netloc
+
+                    new_domain = urlparse(
+                        new_url
+                    ).netloc
+
+                    if (
+                        new_domain
+                        and new_domain != base_domain
+                    ):
+
+                        logger.info(
+                            f"EXTERNAL DOMAIN BLOCKED: {new_url}"
+                        )
+
+                        await page.go_back()
+
+                        continue
 
                     self.navigation_graph.append({
                         "from": previous_url,
@@ -599,12 +1159,51 @@ class CrawlerEngine:
                     logger.warning(
                         f"EXPLORATION FAILED: {e}"
                     )
+            try:
+
+                await page.wait_for_load_state(
+                    "domcontentloaded",
+                    timeout=5000
+                )
+
+            except:
+                pass
+
+            try:
+
+                await page.wait_for_load_state(
+                    "networkidle",
+                    timeout=3000
+                )
+
+            except:
+                pass
+
+            await page.wait_for_timeout(500)
 
             # Extract all interactive elements
-            elements = await self._extract_elements(page)
-            forms = await self._extract_forms(page)
-            links = await self._extract_links(page, url)
-            framework = await self._detect_page_framework(page)
+            try:
+                elements = await self._extract_elements(page)
+            except Exception:
+                elements = []
+            try:
+                forms = await self._extract_forms(page)
+            except Exception:
+                forms = []
+            try:
+                await self._run_accessibility_checks(page)
+            except Exception as e:
+                logger.warning(
+                    f"ACCESSIBILITY CHECK FAILED: {e}"
+                )
+            try:
+                links = await self._extract_links(page, url)
+            except Exception:
+                links = []
+            try:
+                framework = await self._detect_page_framework(page)
+            except Exception:
+                framework = "Unknown"
             page_type = self._classify_page(url, title, elements, forms)
 
             # Screenshot (compressed, small)
@@ -643,27 +1242,44 @@ class CrawlerEngine:
 
     async def _extract_elements(self, page) -> List[Dict]:
         """Extract interactive elements from page."""
-        await page.wait_for_load_state("domcontentloaded")
+        try:
 
-        await page.wait_for_timeout(2000)
+            await page.wait_for_load_state(
+                "domcontentloaded",
+                timeout=3000
+            )
 
-        raw = await page.evaluate("""
-        () => {
-            const selectors = `
-                button,
-                input,
-                select,
-                textarea,
-                form,
-                a[href],
-                [role="button"],
-                [type="submit"],
-                [aria-expanded]
-            `;
+        except:
+            pass
 
-            return Array.from(
-                document.querySelectorAll(selectors)
-            ).slice(0, 200).map(el => ({
+        try:
+
+            await page.wait_for_load_state(
+                "networkidle",
+                timeout=1000
+            )
+        except:
+            pass
+
+        try:
+
+            raw = await page.evaluate("""
+            () => {
+                const selectors = `
+                    button,
+                    input,
+                    select,
+                    textarea,
+                    form,
+                    a[href],
+                    [role="button"],
+                    [type="submit"],
+                    [aria-expanded]
+                `;
+
+                return Array.from(
+                    document.querySelectorAll(selectors)
+                ).slice(0, 200).map(el => ({
                     tag: el.tagName.toLowerCase(),
 
                     text: (
@@ -690,15 +1306,23 @@ class CrawlerEngine:
                     role: el.getAttribute('role') || null,
 
                     action: el.getAttribute('action') || null,
+
                     visible: !!(
                         el.offsetWidth ||
                         el.offsetHeight ||
                         el.getClientRects().length
                     )
-            }));
-        }
-        """)
+                }));
+            }
+            """)
 
+        except Exception as e:
+
+            logger.warning(
+                f"ELEMENT EXTRACTION FAILED: {e}"
+            )
+
+            raw = []
         elements = []
         forms_detected = 0
         inputs_detected = 0
@@ -762,35 +1386,70 @@ class CrawlerEngine:
 
     async def _extract_forms(self, page: Page) -> List[Dict]:
         """Extract all forms with their fields."""
-        forms = await page.evaluate("""
-        () => {
-            return Array.from(document.querySelectorAll('form')).map(form => {
-                const fields = Array.from(form.querySelectorAll('input, select, textarea')).map(f => ({
-                    name: f.name || f.id || null,
-                    type: f.type || 'text',
-                    placeholder: f.placeholder || null,
-                    required: f.required,
-                    options: f.tagName === 'SELECT' ? Array.from(f.options).map(o => o.text) : null,
-                }));
-                const submitBtn = form.querySelector('button[type="submit"], input[type="submit"], button:last-child');
-                return {
-                    action: form.action || null,
-                    method: form.method || 'GET',
-                    id: form.id || null,
-                    fields: fields,
-                    submit_text: submitBtn ? (submitBtn.textContent || '').trim() : null,
-                    field_count: fields.length,
-                };
-            });
-        }
-        """)
+        try:
+
+            forms = await page.evaluate("""
+            () => {
+                return Array.from(document.querySelectorAll('form')).map(form => {
+                    const fields = Array.from(
+                        form.querySelectorAll(
+                            'input, select, textarea'
+                        )
+                    ).map(f => ({
+                        name: f.name || f.id || null,
+                        type: f.type || 'text',
+                        placeholder: f.placeholder || null,
+                        required: f.required,
+                        options: f.tagName === 'SELECT'
+                            ? Array.from(f.options).map(o => o.text)
+                            : null,
+                    }));
+
+                    const submitBtn = form.querySelector(
+                        'button[type="submit"], input[type="submit"], button:last-child'
+                    );
+
+                    return {
+                        action: form.action || null,
+                        method: form.method || 'GET',
+                        id: form.id || null,
+                        fields: fields,
+                        submit_text: submitBtn
+                            ? (submitBtn.textContent || '').trim()
+                            : null,
+                        field_count: fields.length,
+                    };
+                });
+            }
+            """)
+
+        except Exception as e:
+
+            logger.warning(
+                f"FORM EXTRACTION FAILED: {e}"
+            )
+
+            forms = []
+
         return forms or []
 
     async def _extract_links(self, page: Page, current_url: str) -> List[str]:
         """Extract all internal links for crawl queue."""
-        hrefs = await page.evaluate("""
-        () => Array.from(document.querySelectorAll('a[href]')).map(a => a.href)
-        """)
+        try:
+
+            hrefs = await page.evaluate("""
+            () => Array.from(
+                document.querySelectorAll('a[href]')
+            ).map(a => a.href)
+            """)
+
+        except Exception as e:
+
+            logger.warning(
+                f"HREF EXTRACTION FAILED: {e}"
+            )
+
+            hrefs = []
 
         base = urlparse(current_url)
         links = []
@@ -809,6 +1468,96 @@ class CrawlerEngine:
                 pass
 
         return list(dict.fromkeys(links))[:30]  # Dedupe, limit
+    
+    async def _run_accessibility_checks(
+        self,
+        page
+    ):
+        await self._detect_missing_alt_text(page)
+        await self._detect_missing_labels(page)
+        await self._detect_empty_buttons(page)
+        await self._detect_empty_links(page)
+        await self._detect_missing_aria(page)
+        await self._detect_missing_h1(page)
+        await self._detect_missing_lang(page)
+        await self._detect_duplicate_ids(page)
+
+    async def _detect_missing_alt_text(
+        self,
+        page
+    ):
+
+        try:
+
+            images = await page.evaluate("""
+            () => {
+                return Array.from(
+                    document.querySelectorAll("img")
+                )
+                .filter(img =>
+                    !img.hasAttribute("alt")
+                )
+                .map(img => ({
+                    src: img.src
+                }));
+            }
+            """)
+            logger.info(
+                f"MISSING ALT COUNT: {len(images)}"
+            )
+
+            for img in images:
+
+                self._add_bug(
+                    bug_type="ACCESSIBILITY_MISSING_ALT",
+                    severity="HIGH",
+                    page_url=page.url,
+                    description=(
+                        f"Image missing alt text: "
+                        f"{img['src']}"
+                    )
+                )
+
+        except Exception as e:
+
+            logger.warning(
+                f"MISSING ALT CHECK FAILED: {e}"
+            )
+    async def _detect_missing_labels(
+        self,
+        page
+    ):
+        pass
+    async def _detect_empty_buttons(
+        self,
+        page
+    ):
+        pass
+    async def _detect_empty_links(
+        self,
+        page
+    ):
+        pass
+    async def _detect_missing_aria(
+        self,
+        page
+    ):
+        pass
+    async def _detect_missing_h1(
+        self,
+        page
+    ):
+        pass
+    async def _detect_missing_lang(
+        self,
+        page
+    ):
+        pass
+    async def _detect_duplicate_ids(
+        self,
+        page
+    ):
+        pass
 
     async def _wait_for_spa_ready(self, page: Page) -> None:
         """Wait for React/Vue/Angular to finish rendering."""
@@ -830,15 +1579,48 @@ class CrawlerEngine:
 
     async def _detect_page_framework(self, page: Page) -> Optional[str]:
         """Detect JS framework used on the page."""
-        return await page.evaluate("""
-        () => {
-            if (window.React || document.querySelector('[data-reactroot]') || document.querySelector('#__NEXT_DATA__')) return 'Next.js/React';
-            if (window.__VUE__ || document.querySelector('[data-v-]')) return 'Vue.js';
-            if (window.ng || document.querySelector('[ng-version]') || document.querySelector('app-root')) return 'Angular';
-            if (window.Svelte) return 'Svelte';
-            return null;
-        }
-        """)
+        try:
+
+            return await page.evaluate("""
+            () => {
+                if (
+                    window.React ||
+                    document.querySelector('[data-reactroot]') ||
+                    document.querySelector('#__NEXT_DATA__')
+                ) {
+                    return 'Next.js/React';
+                }
+
+                if (
+                    window.__VUE__ ||
+                    document.querySelector('[data-v-]')
+                ) {
+                    return 'Vue.js';
+                }
+
+                if (
+                    window.ng ||
+                    document.querySelector('[ng-version]') ||
+                    document.querySelector('app-root')
+                ) {
+                    return 'Angular';
+                }
+
+                if (window.Svelte) {
+                    return 'Svelte';
+                }
+
+                return null;
+            }
+            """)
+
+        except Exception as e:
+
+            logger.warning(
+                f"FRAMEWORK DETECTION FAILED: {e}"
+            )
+
+            return "Unknown"
 
     async def _setup_auth(self, context, url: str, auth_config: Dict, browser) -> None:
         """Perform login before crawling authenticated routes."""
